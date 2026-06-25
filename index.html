@@ -465,7 +465,13 @@ function siteComponents(sol,area,siteType){
   // qui est en réalité une longueur × largeur) faisait saturer le calcul à 300-450 %, gonflant
   // artificiellement le gain thermique de presque toutes les voiries.
   const maxFracArbre=siteType==='voirie'?0.55:1;
-  if(sol.n_arbres>0) c.push({frac:Math.min(maxFracArbre,sol.n_arbres/(area/250)),...DT_COMPONENT.arbre});
+  // Le ratio arbres/surface sature à 100 % dès qu'un site atteint SA propre densité de plantation
+  // cible — y compris un micro-site planté au minimum (4 arbres) sur une surface réduite. Sans
+  // correctif, un site très inférieur à la taille type obtient le même crédit « pleine canopée »
+  // qu'un site normal, pour une fraction du coût : c'est ce qui gonflait artificiellement
+  // l'indicateur d'efficacité des sites issus d'une géométrie OSM trop petite ou plafonnée.
+  const sizeFactor=siteType&&SITE_TYPES[siteType]?Math.min(1,area/SITE_TYPES[siteType].area_default):1;
+  if(sol.n_arbres>0) c.push({frac:Math.min(maxFracArbre,sol.n_arbres/(area/250))*sizeFactor,...DT_COMPONENT.arbre});
   // Désimper/toiture utilisent la plage thermique du matériau réellement retenu pour ce site
   // (issu du catalogue MATERIALS), pas une valeur générique — c’est le résultat de la comparaison.
   if(sol.desimper_m2>0) c.push({frac:Math.min(1,sol.desimper_m2/area),range:sol.desimper_mat.dT,matur:MAT_MATUR.desimper});
