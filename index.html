@@ -651,12 +651,15 @@ function buildPublicSites(rawSites){
   const filtered=inYutz.length>0?inYutz:rawSites;
   publicSites=filtered.map((s,i)=>{
     const ST=SITE_TYPES[s.siteType];
-    // Plancher de surface plausible : certains polygones OSM sont des fragments (un seul
-    // bâtiment annexe, une erreur de tracé) bien plus petits que le site réel. Sous 30 % de
-    // la surface type, le nombre d’arbres minimal sature le gain thermique alors que le coût
-    // reste quasi nul — ce qui gonflait artificiellement l’indicateur d’efficacité (jusqu’à
-    // ×10-20 la valeur normale). On plafonne donc la surface basse, pas seulement la haute.
-    const area=Math.max(s.area_m2,ST.area_default*0.3);
+    // Plancher ET plafond de surface plausible. En bas : certains polygones OSM sont des
+    // fragments (un seul bâtiment annexe, une erreur de tracé) bien plus petits que le site
+    // réel — sous 30 % de la surface type, le nombre d’arbres minimal sature le gain thermique
+    // alors que le coût reste quasi nul, gonflant artificiellement l’efficacité. En haut :
+    // certains polygones couvrent une zone entière (ex. un « espace vert » de 42 ha qui est en
+    // réalité une zone d’activités) — traiter ça comme un seul chantier de densification au
+    // tarif unitaire donne un coût à plusieurs millions pour un site, ce qui n’a pas de sens
+    // opérationnel (un vrai projet de cette taille se phase, ne se chiffre pas en une ligne).
+    const area=Math.min(Math.max(s.area_m2,ST.area_default*0.3),ST.area_default*5);
     const gs=siteGridStats(s.lon,s.lat);
     // Plancher de potentiel : un site bâti (école, voirie, parking…) n’est quasiment
     // jamais « déjà frais » dans la réalité, même si le point tombe sur une maille
