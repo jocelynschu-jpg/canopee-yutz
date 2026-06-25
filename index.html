@@ -456,9 +456,16 @@ const MAT_MATUR={
   desimper:t=>Math.min(1,t>=1?1:t*0.85),
   toiture: t=>Math.min(1,t>=1?1:t*0.85),
 };
-function siteComponents(sol,area){
+function siteComponents(sol,area,siteType){
   const c=[];
-  if(sol.n_arbres>0) c.push({frac:Math.min(1,sol.n_arbres/(area/250)),...DT_COMPONENT.arbre});
+  // Un alignement le long d'une rue (voirie) n'ombrage qu'une bande étroite du domaine
+  // public, pas toute la largeur de chaussée comprise dans la surface calculée — contrairement
+  // à une plantation groupée (cour, place, parc) qui peut couvrir l'ensemble de sa surface.
+  // Sans ce plafond, la densité d'arbres d'un alignement (rapportée à une « surface » de rue
+  // qui est en réalité une longueur × largeur) faisait saturer le calcul à 300-450 %, gonflant
+  // artificiellement le gain thermique de presque toutes les voiries.
+  const maxFracArbre=siteType==='voirie'?0.55:1;
+  if(sol.n_arbres>0) c.push({frac:Math.min(maxFracArbre,sol.n_arbres/(area/250)),...DT_COMPONENT.arbre});
   // Désimper/toiture utilisent la plage thermique du matériau réellement retenu pour ce site
   // (issu du catalogue MATERIALS), pas une valeur générique — c’est le résultat de la comparaison.
   if(sol.desimper_m2>0) c.push({frac:Math.min(1,sol.desimper_m2/area),range:sol.desimper_mat.dT,matur:MAT_MATUR.desimper});
@@ -654,7 +661,7 @@ function buildPublicSites(rawSites){
     const sol=ST.solution(area);
     // Gain multi-composantes : arbres + désimper + prairie + ombrière + toiture s’additionnent,
     // chacun avec sa propre vitesse de maturation (au lieu de ne créditer que l’action dominante).
-    const comps=siteComponents(sol,area);
+    const comps=siteComponents(sol,area,s.siteType);
     const dT=siteGain(comps,pot,20);     // gain à pleine maturité (~20 ans, sujets fort développement)
     const dT1an=siteGain(comps,pot,1);   // gain dès la première année (effet immédiat)
     // Efficacité : gain thermique à maturité par 100 k€ investis — comparable entre tous les sites.
@@ -940,9 +947,11 @@ function fmtM(n){
 }
 function fmtE(n){return Math.round(n).toLocaleString(numLocale())+' €';}
 function fmtN(n){return Math.round(n).toLocaleString(numLocale());}
-// Affiche l’indicateur d’efficacité, plafonné visuellement ("25+") quand l’écart réel
-// (interventions végétal seul, structurellement moins chères) dépasse le plafond de lecture.
-function fmtEff(s){return s.efficaciteCapped?'≥'+s.efficacite.toFixed(0):'+'+s.efficacite.toFixed(1);}
+// Affiche l’indicateur d’efficacité en négatif, cohérent avec le reste de l’app (un gain de
+// fraîcheur est une baisse de température, donc "−X°C", jamais "+X°C"). Plafonné ("≤ −25°C")
+// quand l’écart réel (interventions végétal seul, structurellement moins chères) dépasse le
+// plafond de lecture.
+function fmtEff(s){return s.efficaciteCapped?'≤ −'+s.efficacite.toFixed(0):'−'+s.efficacite.toFixed(1);}
 
 /* ====== Budget slider ====== */
 function updateBudgetUI(){
