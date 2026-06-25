@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Canopée — scan de Yutz</title>
-<link rel="stylesheet" href="/maplibre-gl.css" />
+<link rel="stylesheet" href="maplibre-gl.css" />
 <style>
   :root{--green:#2f7d4f;--green-d:#22603c;--ink:#1d231f;--muted:#6b746d;--line:#e2e6dd;--paper:#fff;--bg:#f4f6f1;--chip:#eef3ea;--amber:#e8743b;--red:#b5462f}
   *{box-sizing:border-box}
@@ -159,7 +159,7 @@
 
 <div id="dossier"></div>
 
-<script src="/maplibre-gl.js"></script>
+<script src="maplibre-gl.js"></script>
 <script>
 /* ====== Foncier public : types de sites et solutions ====== */
 const POI_ICON={school:'🏫',ehpad:'🏥',mairie:'🏛️',playground:'🛝'};
@@ -595,7 +595,7 @@ let _contour=null;
 function loadData(){
   // Charger contour communal ET sites publics en parallèle
   Promise.all([
-    fetch('/yutz_contour.geojson').then(r=>r.json()),
+    fetch('yutz_contour.geojson').then(r=>r.json()),
     fetchPublicSites(),
   ]).then(([gj,rawSites])=>{
     _contour=gj;
