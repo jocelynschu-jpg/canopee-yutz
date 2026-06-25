@@ -638,6 +638,12 @@ function buildPublicSites(rawSites){
   const filtered=inYutz.length>0?inYutz:rawSites;
   publicSites=filtered.map((s,i)=>{
     const ST=SITE_TYPES[s.siteType];
+    // Plancher de surface plausible : certains polygones OSM sont des fragments (un seul
+    // bâtiment annexe, une erreur de tracé) bien plus petits que le site réel. Sous 30 % de
+    // la surface type, le nombre d’arbres minimal sature le gain thermique alors que le coût
+    // reste quasi nul — ce qui gonflait artificiellement l’indicateur d’efficacité (jusqu’à
+    // ×10-20 la valeur normale). On plafonne donc la surface basse, pas seulement la haute.
+    const area=Math.max(s.area_m2,ST.area_default*0.3);
     const gs=siteGridStats(s.lon,s.lat);
     // Plancher de potentiel : un site bâti (école, voirie, parking…) n’est quasiment
     // jamais « déjà frais » dans la réalité, même si le point tombe sur une maille
@@ -645,18 +651,25 @@ function buildPublicSites(rawSites){
     const pot=s.siteType==='espace_vert'?gs.pot:Math.max(gs.pot,35);
     const tmp=s.siteType==='espace_vert'?gs.tmp:Math.max(gs.tmp,36);
     const vb=vulnerabilityBoost(s.lon,s.lat);
-    const sol=ST.solution(s.area_m2);
+    const sol=ST.solution(area);
     // Gain multi-composantes : arbres + désimper + prairie + ombrière + toiture s’additionnent,
     // chacun avec sa propre vitesse de maturation (au lieu de ne créditer que l’action dominante).
-    const comps=siteComponents(sol,s.area_m2);
+    const comps=siteComponents(sol,area);
     const dT=siteGain(comps,pot,20);     // gain à pleine maturité (~20 ans, sujets fort développement)
     const dT1an=siteGain(comps,pot,1);   // gain dès la première année (effet immédiat)
     // Efficacité : gain thermique à maturité par 100 k€ investis — comparable entre tous les sites.
-    const efficacite=(dT/sol.cost)*100000;
+    // Les interventions « végétal seul » (espace vert : arbres + prairie, sans reprise de
+    // revêtement) sont structurellement bien moins chères par °C que celles qui doivent refaire
+    // un sol minéral (parking, voirie, place) — l’écart est réel, pas un bug. On plafonne
+    // l’affichage pour éviter qu’un ratio à 3 chiffres ne paraisse aberrant à côté des autres,
+    // tout en gardant le calcul brut disponible (efficaciteRaw) pour qui veut le détail.
+    const efficaciteRaw=(dT/sol.cost)*100000;
+    const efficacite=Math.min(efficaciteRaw,25);
+    const efficaciteCapped=efficaciteRaw>25;
     const urgent=tmp>=42;
     const score=pot*(1+vb)*(1+urgenceBoost(tmp));
-    return{id:i,siteType:s.siteType,name:s.name,lon:s.lon,lat:s.lat,area_m2:s.area_m2,
-      pot,tmp,vb,urgent,score,efficacite,dT1an,comps,
+    return{id:i,siteType:s.siteType,name:s.name,lon:s.lon,lat:s.lat,area_m2:area,
+      pot,tmp,vb,urgent,score,efficacite,efficaciteRaw,efficaciteCapped,dT1an,comps,
       tier:ST.tier,col:ST.col,icon:ST.icon,label:ST.label,solution:sol,dT};
   });
   // Coût pour traiter l’intégralité du foncier public identifié — sert à afficher la part
@@ -927,6 +940,9 @@ function fmtM(n){
 }
 function fmtE(n){return Math.round(n).toLocaleString(numLocale())+' €';}
 function fmtN(n){return Math.round(n).toLocaleString(numLocale());}
+// Affiche l’indicateur d’efficacité, plafonné visuellement ("25+") quand l’écart réel
+// (interventions végétal seul, structurellement moins chères) dépasse le plafond de lecture.
+function fmtEff(s){return s.efficaciteCapped?'≥'+s.efficacite.toFixed(0):'+'+s.efficacite.toFixed(1);}
 
 /* ====== Budget slider ====== */
 function updateBudgetUI(){
@@ -969,7 +985,7 @@ function renderDashboard(){
   const urgentN=P.sel.filter(s=>s.urgent).length,urgentTotal=publicSites.filter(s=>s.urgent).length;
   const pctBudget=totalPotentialCost>0?Math.round(P.total/totalPotentialCost*100):0;
   const siteRow=s=>'<div class="bar"><span class="lab" style="width:auto;flex:1">'+(s.urgent?'🔥 ':'')+s.icon+' '+s.name+'</span>'+
-    '<span class="val" style="width:auto;color:var(--muted);font-size:11px;margin-right:6px">+'+s.efficacite.toFixed(1)+'°C/100k€</span>'+
+    '<span class="val" style="width:auto;color:var(--muted);font-size:11px;margin-right:6px">'+fmtEff(s)+'°C/100k€</span>'+
     '<span class="val" style="width:auto;font-weight:600">'+fmtE(s.solution.cost)+'</span></div>';
 
   const tierRows=P.byTier.map(bt=>{
@@ -1060,7 +1076,7 @@ function selectSite(s){
       '<p class="hint" style="margin-top:8px">'+L.especesLabel+sol.species+'</p>'+
       '<div class="stat" style="margin-top:10px">'+
         '<div class="b"><div class="n" style="color:var(--green-d)">'+fmtE(sol.cost)+'</div><div class="l">'+L.coutEstime+'</div></div>'+
-        '<div class="b"><div class="n" style="color:var(--green-d)">+'+s.efficacite.toFixed(1)+'°C</div><div class="l">'+L.efficaciteLabel+'</div></div>'+
+        '<div class="b"><div class="n" style="color:var(--green-d)">'+fmtEff(s)+'°C</div><div class="l">'+L.efficaciteLabel+'</div></div>'+
       '</div>'+
     '</div>'+
     materialsCard(sol);
@@ -1177,7 +1193,7 @@ function openDossier(){
       '<td class="n">'+fmtE(s.solution.cost)+'</td>'+
       '<td class="n" style="color:var(--amber)">−'+g1+'°C</td>'+
       '<td class="n" style="color:var(--green-d)">−'+g20+'°C</td>'+
-      '<td class="n">+'+s.efficacite.toFixed(1)+'</td>'+
+      '<td class="n">'+fmtEff(s)+'</td>'+
       '</tr>';
   });
 
