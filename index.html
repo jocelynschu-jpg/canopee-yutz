@@ -1,0 +1,1065 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Canopée — scan de Yutz</title>
+<link rel="stylesheet" href="/maplibre-gl.css" />
+<style>
+  :root{--green:#2f7d4f;--green-d:#22603c;--ink:#1d231f;--muted:#6b746d;--line:#e2e6dd;--paper:#fff;--bg:#f4f6f1;--chip:#eef3ea;--amber:#e8743b;--red:#b5462f}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:var(--ink);background:var(--bg);line-height:1.5;-webkit-font-smoothing:antialiased}
+  .topbar{display:flex;align-items:center;gap:14px;padding:12px 20px;background:var(--green);color:#fff}
+  .topbar .logo{font-size:20px;font-weight:600}.topbar .tag{font-size:13px;opacity:.9}.topbar .spacer{flex:1}
+  .topbar .commune{font-size:13px;background:rgba(255,255,255,.15);padding:7px 12px;border-radius:8px}.topbar .commune b{font-weight:600}
+  .controls{display:flex;flex-wrap:wrap;align-items:center;gap:10px 20px;padding:10px 20px;background:var(--paper);border-bottom:1px solid var(--line)}
+  .ctl-group{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted)}
+  .seg{display:inline-flex;background:var(--chip);border-radius:9px;padding:3px}
+  .seg button{border:0;background:transparent;padding:6px 11px;border-radius:7px;font-size:13px;cursor:pointer;color:var(--muted)}
+  .seg button.on{background:#fff;color:var(--ink);font-weight:600;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+  .budget-wrap{display:flex;align-items:center;gap:8px;background:var(--chip);border-radius:11px;padding:7px 13px}
+  .budget-wrap label{font-size:12px;color:var(--muted);font-weight:600;white-space:nowrap}
+  .budget-wrap input[type=range]{width:130px;accent-color:var(--green);cursor:pointer}
+  #budgetLabel{font-size:14px;font-weight:700;color:var(--ink);min-width:56px;text-align:right}
+  #budgetCells{font-size:11.5px;color:var(--muted);white-space:nowrap}
+  main{display:grid;grid-template-columns:1.4fr 1fr;gap:0}
+  @media(max-width:900px){main{grid-template-columns:1fr}}
+  .mapwrap{position:relative;padding:18px;background:var(--bg)}
+  #map{width:100%;height:564px;border-radius:14px;border:1px solid var(--line);background:#e9ece3}
+  .maptip{position:absolute;left:30px;top:30px;background:rgba(255,255,255,.93);border:1px solid var(--line);border-radius:10px;padding:8px 11px;font-size:11.5px;color:var(--muted);max-width:215px;line-height:1.45;z-index:2}
+  .maptip b{color:var(--ink)}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:12px;font-size:12px;color:var(--muted);align-items:center}
+  .legend .ti{font-weight:600;color:var(--ink);margin-right:2px}
+  .legend .sw{display:inline-block;width:13px;height:13px;border-radius:3px;margin-right:5px;vertical-align:-2px}
+  aside{background:var(--paper);border-left:1px solid var(--line);padding:18px;min-height:560px;overflow-y:auto;max-height:calc(100vh - 130px)}
+  h2.sec{font-size:16px;margin:0 0 4px;font-weight:600}
+  .hint{font-size:12.5px;color:var(--muted);margin:0 0 14px}
+  .stat{display:flex;gap:8px;margin:0 0 10px}
+  .stat .b{flex:1;border:1px solid var(--line);border-radius:11px;padding:10px 11px;text-align:center}
+  .stat .n{font-size:18px;font-weight:600;line-height:1.1}
+  .stat .l{font-size:10.5px;color:var(--muted);margin-top:3px}
+  .split{font-size:13px;margin:0 0 6px}
+  .splitbar{display:flex;height:14px;border-radius:5px;overflow:hidden;margin:6px 0 4px;border:1px solid var(--line)}
+  .splitbar span{display:block}
+  .reco{border:1px solid var(--line);border-radius:12px;padding:11px 13px;margin-bottom:8px;display:flex;gap:11px;align-items:flex-start}
+  .reco .ic{font-size:20px;line-height:1}
+  .reco .t{font-size:14px;font-weight:600}
+  .reco .d{font-size:12px;color:var(--muted)}
+  .reco .area{margin-left:auto;font-size:12px;font-weight:600;color:var(--green-d);white-space:nowrap}
+  .back{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--green-d);font-size:13px;cursor:pointer;padding:0;margin-bottom:12px;font-weight:600}
+  .dhead{display:flex;align-items:flex-start;gap:12px;margin-bottom:14px}
+  .dhead .ico{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;font-size:22px;flex:none}
+  .dhead h2{margin:0;font-size:17px}.dhead .sub{font-size:12.5px;color:var(--muted)}
+  .card{border:1px solid var(--line);border-radius:12px;padding:13px;margin-bottom:12px}
+  .card h3{margin:0 0 9px;font-size:12px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);font-weight:600}
+  .bar{display:flex;align-items:center;gap:10px;margin:7px 0;font-size:13px}
+  .bar .lab{width:120px;flex:none}.bar .track{flex:1;height:8px;background:#eef1ea;border-radius:5px;overflow:hidden}
+  .bar .fill{display:block;height:100%;border-radius:5px}.bar .val{width:46px;text-align:right;font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px}
+  .verdict{font-size:13px;padding:9px 12px;border-radius:9px;background:var(--chip);margin-top:4px}
+  .interv{font-size:13px;background:#eef3ea;border-radius:9px;padding:10px 12px;margin:2px 0 10px;display:flex;gap:8px}
+  .sp{border:1px solid var(--line);border-radius:11px;padding:10px 13px;margin-bottom:9px}
+  .sp.top{border-color:#bfe0c9;background:#f3faf4}
+  .sp .spn{font-size:14px;font-weight:600}.sp .lat{font-size:12px;color:var(--muted);font-style:italic}
+  .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+  .chip{font-size:11.5px;padding:3px 9px;border-radius:20px;background:var(--chip);color:#3a463d}
+  .fchips{display:flex;flex-wrap:wrap;gap:6px}
+  .fchip{display:inline-flex;align-items:center;gap:5px;font-size:12.5px;padding:5px 11px;border-radius:20px;border:1.5px solid var(--line);background:#fff;cursor:pointer;color:var(--ink);user-select:none}
+  .fchip.off{opacity:.4;background:var(--chip)}
+  .fchip .dot{width:9px;height:9px;border-radius:50%;display:inline-block;flex:none}
+  .fchip .eff{margin-left:2px;font-size:10.5px;color:var(--muted)}
+  .strate{display:inline-block;font-size:11.5px;font-weight:600;padding:3px 10px;border-radius:20px;margin:0 6px 6px 0}
+  /* Courbe temporelle */
+  .tcurve{display:flex;align-items:center;gap:4px;margin:8px 0 4px;background:var(--chip);border-radius:10px;padding:11px 13px}
+  .tcurve .year{flex:1;text-align:center}
+  .tcurve .y-val{font-size:15px;font-weight:700;color:var(--green-d)}
+  .tcurve .y-lab{font-size:10px;color:var(--muted);margin-top:2px;line-height:1.2}
+  .tcurve .arr{color:#ccd3c6;font-size:12px;padding:0 2px}
+  .warn-box{font-size:12px;padding:9px 12px;border-radius:9px;background:#fff8e6;border:1px solid #f0d070;margin-top:6px;color:#664400}
+  .foot{font-size:11.5px;color:var(--muted);padding:14px 20px;border-top:1px solid var(--line);background:var(--paper)}.foot b{color:#4a5249}
+  .genbtn{display:block;width:100%;text-align:center;border:0;background:var(--green);color:#fff;border-radius:11px;padding:13px;font-size:14px;font-weight:600;cursor:pointer;margin:14px 0 4px}
+  .genbtn:hover{background:var(--green-d)}
+  /* Dossier */
+  #dossier{display:none;max-width:920px;margin:0 auto;padding:30px 28px 70px;background:#fff;color:var(--ink)}
+  body.dossier-open .topbar,body.dossier-open .controls,body.dossier-open main,body.dossier-open .foot{display:none}
+  body.dossier-open #dossier{display:block}
+  .dz-bar{display:flex;gap:10px;justify-content:flex-end;margin-bottom:20px}
+  .dz-bar button{border:1px solid var(--line);background:#fff;border-radius:9px;padding:8px 14px;font-size:13px;cursor:pointer;color:var(--ink)}
+  .dz-bar button.primary{background:var(--green);color:#fff;border-color:var(--green)}
+  .dz-h1{font-size:26px;font-weight:700;margin:0 0 2px}
+  .dz-sub{color:var(--muted);font-size:13.5px;margin-bottom:18px}
+  .dz-band{background:var(--green);color:#fff;border-radius:10px;padding:13px 18px;margin-bottom:18px}
+  .dz-band .t{font-size:11px;text-transform:uppercase;letter-spacing:.5px;opacity:.85}
+  .dz-band .v{font-size:18px;font-weight:600}
+  #dossier h2{font-size:16px;border-bottom:2px solid var(--green);padding-bottom:5px;margin:28px 0 12px}
+  #dossier h2:first-of-type{margin-top:10px}
+  #dossier p,#dossier li{font-size:13.5px;line-height:1.6}
+  #dossier ul{padding-left:18px;margin:6px 0}
+  #dossier table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0}
+  #dossier th,#dossier td{text-align:left;padding:7px 9px;border-bottom:1px solid var(--line);vertical-align:top}
+  #dossier th{color:var(--muted);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px;white-space:nowrap}
+  #dossier td.n,#dossier th.n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #dossier tr.tot td{font-weight:700;border-top:2px solid var(--ink);border-bottom:none}
+  #dossier tr:hover td{background:#fafbf9}
+  .dz-kpis{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:8px}
+  .dz-kpi{border:1px solid var(--line);border-radius:11px;padding:11px}
+  .dz-kpi .n{font-size:19px;font-weight:700;color:var(--green-d)}
+  .dz-kpi .l{font-size:11px;color:var(--muted);margin-top:2px;line-height:1.35}
+  .dz-sign{margin-top:34px;display:flex;justify-content:space-between;font-size:12.5px;color:var(--muted)}
+  .dz-note{font-size:11px;color:var(--muted);margin-top:26px;border-top:1px solid var(--line);padding-top:10px}
+  .dz-hbands{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin:10px 0}
+  .dz-hband{border-radius:10px;padding:12px;border:1px solid var(--line);text-align:center}
+  .dz-hband .hv{font-size:20px;font-weight:700}
+  .dz-hband .hy{font-size:11.5px;font-weight:600;margin-bottom:4px}
+  .dz-hband .hl{font-size:10.5px;color:var(--muted);line-height:1.3}
+  .dz-alert{background:#fff8e6;border:1px solid #f0d070;border-radius:9px;padding:11px 14px;font-size:12.5px;color:#664400;margin:10px 0}
+  @media print{body{background:#fff}.dz-bar{display:none}.topbar,.controls,main,.foot{display:none!important}#dossier{display:block!important;max-width:none;margin:0;padding:0}}
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <span class="logo">🌳 Canopée</span><span class="tag">scan thermique &amp; potentiel de végétalisation</span>
+    <span class="spacer"></span><span class="commune">📍 <b>Yutz</b> · Moselle (57) · 14 km²</span>
+  </div>
+  <div class="controls">
+    <div class="ctl-group">Affichage&nbsp;:
+      <div class="seg" id="theme">
+        <button data-v="potentiel" class="on">Potentiel</button>
+        <button data-v="occupation">Occupation</button>
+        <button data-v="temperature">Température</button>
+      </div>
+    </div>
+    <div class="ctl-group">Fond&nbsp;:
+      <div class="seg" id="basemap">
+        <button data-v="plan" class="on">Plan IGN</button><button data-v="satellite">Satellite</button><button data-v="osm">OSM</button>
+      </div>
+    </div>
+    <div class="budget-wrap">
+      <label>Budget travaux&nbsp;:</label>
+      <input type="range" id="budgetSlider" min="200000" max="6000000" step="100000" value="2000000">
+      <span id="budgetLabel">2,0 M€</span>
+      <span id="budgetCells">…</span>
+    </div>
+  </div>
+  <div class="controls">
+    <div class="ctl-group">Filtrer les sites affichés&nbsp;:
+      <div class="fchips" id="siteFilters"></div>
+    </div>
+  </div>
+  <main>
+    <section class="mapwrap">
+      <div id="map"></div>
+      <div class="maptip">Yutz : <b id="tipN">…</b> mailles analysées (fond thermique) + <b>foncier public</b> identifié. <b>Gros cercles</b> = dans le programme au budget actuel. <b>Petits points pâles</b> = identifiés mais non financés à ce niveau de budget. <b>Cliquez un site</b> pour le détail. 🔴 École · 🟣 EHPAD · 🔵 Équipement · ⚪ Place/Parking · 🟤 Voirie · 🟢 Espace vert</div>
+      <div class="legend" id="legend"></div>
+    </section>
+    <aside id="panel"></aside>
+  </main>
+  <div class="foot">
+    <b>Prototype — Yutz.</b> Fond <b>IGN Géoplateforme</b>, contour <b>API Géo</b>. L'occupation du sol et la température sont <b>modélisées</b> (démo) ; en production chaque maille est calculée sur <b>Sentinel-2 NDVI</b>, <b>LiDAR HD IGN</b> et <b>Landsat/ECOSTRESS</b>, croisés au <b>cadastre</b>.
+  </div>
+
+<div id="dossier"></div>
+
+<script src="/maplibre-gl.js"></script>
+<script>
+/* ====== Foncier public : types de sites et solutions ====== */
+const POI_ICON={school:'🏫',ehpad:'🏥',mairie:'🏛️',playground:'🛝'};
+const POI_LABEL={school:'École / crèche',ehpad:'EHPAD / maison de retraite',mairie:'Mairie / espace public',playground:'Aire de jeux'};
+
+/* Chaque type de foncier public a un tier (priorité budgétaire) et une fonction
+   qui calcule la solution (quoi planter / quels travaux) selon la surface estimée.
+   tier 1 = toujours prioritaire (écoles, EHPAD) ; tier 4 = seulement gros budget. */
+/* ====== Catalogue de matériaux comparés (veille juin 2026) ======
+   Sources : CEREMA / Adaptaville (Plante & Cité) — pavés et enrobés drainants ;
+   Eiffage ÉcOasis® / Bioklair® — enrobé clair à albédo élevé ;
+   Lawrence Berkeley National Lab Heat Island Group + Hélios — cool roof vs toiture végétale ;
+   Espace Ombrage / Adaptaville — voiles d’ombrage ;
+   Urbasense — fosse de Stockholm (croissance racinaire accélérée).
+   Pour chaque site, la plateforme calcule le ratio °C-gagné / € pour CHAQUE option compatible
+   et retient automatiquement la meilleure — au lieu d’appliquer un matériau fixe par défaut. */
+const MATERIALS={
+  desimper:[
+    {id:'stabilise',label:'Stabilisé / sable-résine',cost_m2:45,dT:[1.5,2.2],carrossable:false,
+      note:'Le plus économique en zone piétonne ; entretien faible.'},
+    {id:'paves_drainants',label:'Pavés / dalles à joints drainants',cost_m2:75,dT:[1.8,2.6],carrossable:true,
+      note:'Durable, accessible PMR.'},
+    {id:'beton_drainant',label:'Béton / enrobé drainant carrossable',cost_m2:55,dT:[1.8,2.6],carrossable:true,
+      note:'Supporte le trafic ; demande un entretien (aspiration) pour éviter le colmatage.'},
+    {id:'enrobe_clair',label:'Enrobé clair à albédo élevé (type ÉcOasis®)',cost_m2:75,dT:[2.2,3.2],carrossable:true,
+      note:'Cumule désimperméabilisation et réflexion solaire ; plus salissant qu’un enrobé noir.'},
+    {id:'pleine_terre',label:'Retrait total + pleine terre végétalisée',cost_m2:110,dT:[2.8,4.0],carrossable:false,risque:true,
+      note:'Le plus frais, mais gestion des déblais et diagnostic amiante/HAP obligatoire avant travaux — non retenu par défaut.'},
+  ],
+  toiture:[
+    {id:'cool_roof',label:'Cool roof (peinture réfléchissante blanche)',cost_m2:30,dT:[1.0,1.6],
+      note:'~3× moins cher que le végétal pour un effet de surface comparable (35–45 °C vs 75–85 °C), mais aucune rétention d’eau ni biodiversité.'},
+    {id:'veg_extensive',label:'Toiture végétale extensive',cost_m2:95,dT:[1.0,1.8],
+      note:'Rétention des eaux pluviales + biodiversité — valorisé par l’axe « renaturation » du Fonds Vert.'},
+  ],
+};
+function matEff(m){return((m.dT[0]+m.dT[1])/2)/m.cost_m2;}
+function bestDesimper(carrossable){
+  const pool=MATERIALS.desimper.filter(m=>!m.risque&&(!carrossable||m.carrossable));
+  const best=pool.reduce((b,m)=>!b||matEff(m)>matEff(b)?m:b,null);
+  return{...best,_pool:pool};
+}
+// Carte de comparaison : montre toutes les options évaluées pour ce site et pourquoi l’une a été retenue.
+function materialsCard(sol){
+  let h='';
+  if(sol.desimper_mat){
+    const pool=sol.desimper_mat._pool;
+    const rows=pool.map(m=>{
+      const chosen=m.id===sol.desimper_mat.id;
+      return '<div class="bar" style="'+(chosen?'font-weight:600':'opacity:.6')+'"><span class="lab" style="width:auto;flex:1">'+(chosen?'✓ ':'')+m.label+'</span><span class="val" style="width:auto;color:var(--muted);font-size:11px;margin-right:8px">'+matEff(m).toFixed(3)+' °C par €/m²</span><span class="val" style="width:auto">'+m.cost_m2+' €/m²</span></div>';
+    }).join('');
+    h+='<div class="card"><h3>Désimperméabilisation — '+pool.length+' matériaux comparés</h3>'+
+      rows+
+      '<p class="hint" style="margin-top:8px"><b>'+sol.desimper_mat.label+'</b> retenu : meilleur ratio gain thermique / coût parmi les options compatibles avec ce site. '+sol.desimper_mat.note+'</p>'+
+    '</div>';
+    const risk=MATERIALS.desimper.find(m=>m.risque);
+    h+='<div class="warn-box">⚠️ <b>Option non retenue par défaut :</b> '+risk.label+' ('+risk.cost_m2+' €/m², le plus frais) nécessite un diagnostic amiante/HAP préalable (enrobés anciens) et la gestion des déblais — à envisager site par site avec le maître d’œuvre, pas systématisé ici.</div>';
+  }
+  if(sol.toiture_mat){
+    const alt=MATERIALS.toiture.find(m=>m.id!==sol.toiture_mat.id);
+    h+='<div class="card"><h3>Toiture — comparatif</h3>'+
+      MATERIALS.toiture.map(m=>{
+        const chosen=m.id===sol.toiture_mat.id;
+        return '<div class="bar" style="'+(chosen?'font-weight:600':'opacity:.6')+'"><span class="lab" style="width:auto;flex:1">'+(chosen?'✓ ':'')+m.label+'</span><span class="val" style="width:auto">'+m.cost_m2+' €/m²</span></div>';
+      }).join('')+
+      '<p class="hint" style="margin-top:8px">'+sol.toiture_mat.note+'</p>'+
+      '<p class="hint" style="margin-top:4px"><b>Variante économique :</b> '+alt.label+' à '+alt.cost_m2+' €/m² — '+alt.note+'</p>'+
+    '</div>';
+  }
+  return h;
+}
+
+const SITE_TYPES={
+  ecole:{label:'École / Crèche',icon:'🏫',col:'#e74c3c',tier:1,area_default:1800,
+    solution(area){
+      const n=Math.max(4,Math.round(area/220)),dim=Math.round(area*0.65),pr=Math.round(area*0.20),omb=Math.round(area*0.12);
+      const mat=bestDesimper(false);
+      return{label:'Cour Oasis renforcée',
+        desc:n+' arbres de fort développement (fosse type Stockholm), '+mat.label.toLowerCase()+' '+fmtN(dim)+' m², prairie florale '+fmtN(pr)+' m², voiles d’ombrage '+fmtN(omb)+' m² (soulagement dès l’installation)',
+        n_arbres:n,desimper_m2:dim,prairie_m2:pr,ombriere_m2:omb,desimper_mat:mat,
+        cost:Math.round(n*2400+dim*mat.cost_m2+pr*12+omb*180),delai:4,strate:'arbre',
+        species:'Tilleul argenté (Tilia tomentosa), Micocoulier de Provence (Celtis australis)'};
+    }},
+  ehpad:{label:'EHPAD / Résidence seniors',icon:'🏥',col:'#8e44ad',tier:1,area_default:800,
+    solution(area){
+      const n=Math.max(3,Math.round(area/200)),dim=Math.round(area*0.30),pr=Math.round(area*0.35),omb=Math.round(area*0.15);
+      const mat=bestDesimper(false);
+      return{label:'Jardin thérapeutique ombragé renforcé',
+        desc:n+' arbres à port étalé de fort développement, voile d’ombrage '+fmtN(omb)+' m² (effet immédiat), '+mat.label.toLowerCase()+' '+fmtN(dim)+' m², prairie apaisante '+fmtN(pr)+' m²',
+        n_arbres:n,desimper_m2:dim,prairie_m2:pr,ombriere_m2:omb,desimper_mat:mat,
+        cost:Math.round(n*2800+dim*mat.cost_m2+pr*12+omb*180),delai:3,strate:'arbre',
+        species:'Févier d’Amérique (Gleditsia triacanthos), Tilleul argenté (Tilia tomentosa)'};
+    }},
+  place:{label:'Place / Square public',icon:'🏛️',col:'#2980b9',tier:2,area_default:2000,
+    solution(area){
+      const n=Math.max(5,Math.round(area/160)),dim=Math.round(area*0.55),omb=Math.round(area*0.10);
+      const mat=bestDesimper(false);
+      return{label:'Requalification climatique de place',
+        desc:n+' arbres à port étalé de fort développement, '+mat.label.toLowerCase()+' '+fmtN(dim)+' m², voile d’ombrage '+fmtN(omb)+' m² sur l’aire de repos',
+        n_arbres:n,desimper_m2:dim,prairie_m2:0,ombriere_m2:omb,desimper_mat:mat,
+        cost:Math.round(n*3800+dim*mat.cost_m2+omb*180),delai:10,strate:'arbre',
+        species:'Micocoulier de Provence (Celtis australis), Chêne pubescent (Quercus pubescens)'};
+    }},
+  parking:{label:'Parking public',icon:'🅿️',col:'#7f97a6',tier:2,area_default:1500,
+    solution(area){
+      const n=Math.max(4,Math.round(area/150)),dim=Math.round(area*0.30),omb=Math.round(area*0.20);
+      const mat=bestDesimper(true);
+      return{label:'Ombrière arborée renforcée',
+        desc:n+' arbres (1 pour 3-4 places), '+mat.label.toLowerCase()+' '+fmtN(dim)+' m² (carrossable), ombrières '+fmtN(omb)+' m² sur les places les plus exposées',
+        n_arbres:n,desimper_m2:dim,prairie_m2:0,ombriere_m2:omb,desimper_mat:mat,
+        cost:Math.round(n*2700+dim*mat.cost_m2+omb*220),delai:7,strate:'arbre',
+        species:'Érable champêtre (Acer campestre), Févier d’Amérique (Gleditsia triacanthos)'};
+    }},
+  equipement:{label:'Équipement public (mairie, gymnase…)',icon:'🏢',col:'#e67e22',tier:3,area_default:600,
+    solution(area){
+      const mat=MATERIALS.toiture.find(m=>m.id==='veg_extensive');
+      return{label:'Toiture végétale intensive',
+        desc:fmtN(area)+' m² toiture végétalisée (substrat 15 cm, sedum + vivaces + graminées), rétention eaux pluviales renforcée',
+        n_arbres:0,desimper_m2:0,prairie_m2:0,toiture_mat:mat,
+        cost:Math.round(area*mat.cost_m2),delai:1,strate:'toiture',
+        species:'Sedum album, Sedum acre, Thymus serpyllum, Festuca ovina'};
+    }},
+  voirie:{label:'Voirie / Trottoir',icon:'🛣️',col:'#8b7d6b',tier:3,area_default:700,
+    solution(area){
+      const len=Math.round(area/7),n=Math.max(2,Math.round(len/8)),dim=Math.round(len*1.8);
+      const mat=bestDesimper(false);
+      return{label:'Alignement arboré renforcé',
+        desc:n+' arbres de fort développement en fosse partagée, trottoir en '+mat.label.toLowerCase()+' '+fmtN(dim)+' m²',
+        n_arbres:n,desimper_m2:dim,prairie_m2:0,desimper_mat:mat,
+        cost:Math.round(n*2400+dim*mat.cost_m2),delai:12,strate:'arbre',
+        species:'Tilleul argenté (Tilia tomentosa), Érable champêtre (Acer campestre)'};
+    }},
+  espace_vert:{label:'Parc / Espace vert public',icon:'🌿',col:'#27ae60',tier:4,area_default:3000,
+    solution(area){
+      const n=Math.max(3,Math.round(area/350)),pr=Math.round(area*0.45);
+      return{label:'Densification et naturalisation renforcée',
+        desc:n+' arbres complémentaires de fort développement, prairie de fauche tardive '+fmtN(pr)+' m², strate arbustive multi-espèces',
+        n_arbres:n,desimper_m2:0,prairie_m2:pr,
+        cost:Math.round(n*1500+pr*8),delai:4,strate:'prairie',
+        species:'Noisetier (Corylus avellana), Cornouiller sanguin (Cornus sanguinea)'};
+    }},
+};
+
+/* Modèle thermique multi-composantes : chaque action (arbres, désimper, prairie, toiture,
+   ombrière) contribue sa propre part du gain, avec sa propre vitesse de maturation — au lieu
+   de ne créditer que l’action dominante. Sujets « fort développement » → canopée utile en
+   ~20 ans (au lieu de 25–30 ans pour de jeunes plants), ce qui accélère aussi l’effet à moyen terme. */
+const DT_COMPONENT={
+  arbre:   {range:[3,5],   matur:t=>Math.min(1,t/20)},
+  prairie: {range:[0.8,1.6],matur:t=>Math.min(1,t>=2?1:t*0.5)},
+  ombriere:{range:[1.0,1.8],matur:()=>1},
+};
+const MAT_MATUR={
+  desimper:t=>Math.min(1,t>=1?1:t*0.85),
+  toiture: t=>Math.min(1,t>=1?1:t*0.85),
+};
+function siteComponents(sol,area){
+  const c=[];
+  if(sol.n_arbres>0) c.push({frac:Math.min(1,sol.n_arbres/(area/250)),...DT_COMPONENT.arbre});
+  // Désimper/toiture utilisent la plage thermique du matériau réellement retenu pour ce site
+  // (issu du catalogue MATERIALS), pas une valeur générique — c’est le résultat de la comparaison.
+  if(sol.desimper_m2>0) c.push({frac:Math.min(1,sol.desimper_m2/area),range:sol.desimper_mat.dT,matur:MAT_MATUR.desimper});
+  if(sol.prairie_m2>0) c.push({frac:Math.min(1,sol.prairie_m2/area),...DT_COMPONENT.prairie});
+  if(sol.ombriere_m2>0) c.push({frac:Math.min(1,sol.ombriere_m2/area),...DT_COMPONENT.ombriere});
+  if(sol.strate==='toiture') c.push({frac:1,range:sol.toiture_mat.dT,matur:MAT_MATUR.toiture});
+  return c;
+}
+function siteGain(comps,pot,t){
+  return comps.reduce((s,c)=>s+c.frac*((c.range[0]+c.range[1])/2)*(pot/100)*c.matur(t),0);
+}
+
+// Sites publics de secours si Overpass est indisponible (localisations approx. Yutz)
+const FALLBACK_SITES=[
+  {siteType:'ecole',      name:'École élémentaire Lucie Aubrac', lon:6.1930, lat:49.3578, area_m2:2200},
+  {siteType:'ecole',      name:'École maternelle centre',        lon:6.1945, lat:49.3592, area_m2:1600},
+  {siteType:'ecole',      name:'École élémentaire Haute Yutz',   lon:6.1985, lat:49.3638, area_m2:2000},
+  {siteType:'ecole',      name:'École maternelle Yutz-Cité',     lon:6.2005, lat:49.3665, area_m2:1500},
+  {siteType:'ehpad',      name:'EHPAD résidence du Fort',        lon:6.1950, lat:49.3550, area_m2:900},
+  {siteType:'place',      name:'Parvis de la Mairie',            lon:6.1928, lat:49.3575, area_m2:1200},
+  {siteType:'parking',    name:'Parking centre-bourg',           lon:6.1942, lat:49.3568, area_m2:1600},
+  {siteType:'parking',    name:'Parking gare / Fort',            lon:6.1958, lat:49.3542, area_m2:2200},
+  {siteType:'voirie',     name:'Rue de la Moselle (centre)',     lon:6.1938, lat:49.3582, area_m2:750},
+  {siteType:'voirie',     name:'Avenue de la Libération',        lon:6.1960, lat:49.3598, area_m2:1100},
+  {siteType:'voirie',     name:'Rue principale Haute Yutz',      lon:6.1988, lat:49.3644, area_m2:850},
+  {siteType:'voirie',     name:'Rue du Fort',                    lon:6.1966, lat:49.3536, area_m2:600},
+  {siteType:'equipement', name:'Mairie de Yutz',                 lon:6.1928, lat:49.3575, area_m2:480},
+  {siteType:'equipement', name:'Gymnase municipal',               lon:6.1968, lat:49.3602, area_m2:780},
+  {siteType:'espace_vert',name:'Parc du Fort',                   lon:6.1962, lat:49.3525, area_m2:9000},
+  {siteType:'espace_vert',name:'Square Haute Yutz',              lon:6.2010, lat:49.3648, area_m2:2800},
+  {siteType:'espace_vert',name:'Square centre-bourg',            lon:6.1936, lat:49.3588, area_m2:1400},
+];
+let pois=[];          // sous-ensemble écoles/EHPAD, utilisé pour le score de vulnérabilité
+let publicSites=[];   // tous les sites publics, construit après la grille (besoin du potentiel thermique)
+
+function osmToSiteType(tags){
+  const a=tags.amenity,h=tags.highway,l=tags.leisure;
+  if(a==='school'||a==='kindergarten'||a==='college') return 'ecole';
+  if(a==='hospital'||a==='nursing_home'||a==='social_facility') return 'ehpad';
+  if(a==='library'||a==='community_centre'||a==='sports_centre'||a==='theatre'||a==='townhall') return 'equipement';
+  if(a==='parking') return 'parking';
+  if(l==='park'||l==='garden'||l==='recreation_ground') return 'espace_vert';
+  if(l==='playground') return 'ecole';
+  if(h==='primary'||h==='secondary'||h==='tertiary'||h==='residential'||h==='living_street'||h==='pedestrian') return 'voirie';
+  return null;
+}
+
+async function fetchPublicSites(){
+  const bbox='49.34,6.16,49.38,6.23';
+  const q=`[out:json][timeout:15];(
+    node["amenity"~"^(school|kindergarten|college|hospital|nursing_home|social_facility|library|community_centre|townhall|sports_centre|theatre)$"](${bbox});
+    way["amenity"~"^(school|kindergarten|college|hospital|nursing_home|library|community_centre|townhall|sports_centre)$"](${bbox});
+    way["amenity"="parking"]["access"!="private"](${bbox});
+    node["amenity"="parking"]["access"!="private"](${bbox});
+    way["leisure"~"^(park|garden|playground|recreation_ground)$"](${bbox});
+    node["leisure"~"^(park|playground)$"](${bbox});
+    way["highway"~"^(primary|secondary|tertiary|residential|living_street|pedestrian)$"]["name"](${bbox});
+  );out center tags;`;
+  try{
+    const ctrl=new AbortController();
+    const tid=setTimeout(()=>ctrl.abort(),12000);
+    const res=await fetch('https://overpass-api.de/api/interpreter',{method:'POST',body:'data='+encodeURIComponent(q),signal:ctrl.signal});
+    clearTimeout(tid);
+    const data=await res.json();
+    const raw=data.elements.map(el=>{
+      const lon=el.lon??el.center?.lon, lat=el.lat??el.center?.lat;
+      if(!lon||!lat)return null;
+      const t=el.tags||{};
+      // Exclure le foncier explicitement privé (écoles/cliniques privées taguées operator:type=private) —
+      // la commune ne peut pas financer de travaux sur ces établissements. Le tag OSM est souvent absent
+      // même sur du vraiment privé : on filtre aussi sur des noms sans ambiguïté (ex. "Business School").
+      if(t['operator:type']==='private'||t['operator:type']==='religious') return null;
+      if(/business school|école privée|institut privé/i.test(t.name||'')) return null;
+      const siteType=osmToSiteType(t);
+      if(!siteType)return null;
+      const ST=SITE_TYPES[siteType];
+      return{siteType,name:t.name||ST.label,lon,lat,area_m2:ST.area_default};
+    }).filter(Boolean);
+    // Voirie : OSM scinde une même rue en dizaines de tronçons — on regroupe par nom
+    // pour obtenir un site = une rue entière, pas un segment de 20 m.
+    const voirieByName={},others=[];
+    for(const s of raw){
+      if(s.siteType==='voirie'){
+        const g=voirieByName[s.name]||(voirieByName[s.name]={name:s.name,area_m2:0,lons:[],lats:[]});
+        g.area_m2+=s.area_m2;g.lons.push(s.lon);g.lats.push(s.lat);
+      } else others.push(s);
+    }
+    const voirieSites=Object.values(voirieByName).map(v=>({
+      siteType:'voirie',name:v.name,
+      lon:v.lons.reduce((a,b)=>a+b,0)/v.lons.length,
+      lat:v.lats.reduce((a,b)=>a+b,0)/v.lats.length,
+      area_m2:Math.min(v.area_m2,6000),
+    }));
+    // Autres types : un même établissement porte souvent plusieurs tags OSM proches
+    // (bâtiment + cour + entrée) — on dédoublonne par proximité.
+    const dedupOthers=[];
+    for(const s of others){ if(!dedupOthers.some(x=>dist(s.lon,s.lat,x.lon,x.lat)*111320<80)) dedupOthers.push(s); }
+    const combined=[...dedupOthers,...voirieSites];
+    const sites=combined.length>0?combined:FALLBACK_SITES;
+    pois=sites.filter(s=>s.siteType==='ecole'||s.siteType==='ehpad')
+      .map(s=>({type:s.siteType==='ecole'?'school':'ehpad',name:s.name,lon:s.lon,lat:s.lat,priority:3}));
+    console.log('Sites publics chargés via Overpass:',sites.length);
+    return sites;
+  }catch(e){
+    pois=FALLBACK_SITES.filter(s=>s.siteType==='ecole'||s.siteType==='ehpad')
+      .map(s=>({type:s.siteType==='ecole'?'school':'ehpad',name:s.name,lon:s.lon,lat:s.lat,priority:3}));
+    console.log('Overpass indisponible, sites de secours:',FALLBACK_SITES.length);
+    return FALLBACK_SITES;
+  }
+}
+
+// Potentiel thermique + température actuelle au point (lon,lat) = maille de grille la plus proche
+function siteGridStats(lon,lat){
+  let best=Infinity,pot=60,tmp=36;
+  for(const f of grid.features){
+    const d=dist(lon,lat,+f.properties.lon,+f.properties.lat);
+    if(d<best){best=d;pot=f.properties.pot;tmp=f.properties.tmp;}
+  }
+  return{pot,tmp};
+}
+
+// Boost de score lié à l’urgence : un site déjà à 40–46 °C l’été doit passer avant
+// un site équivalent mais plus frais, même à potentiel de fraîcheur égal.
+function urgenceBoost(tmp){
+  if(tmp>=44) return 0.35;
+  if(tmp>=40) return 0.20;
+  if(tmp>=36) return 0.08;
+  return 0;
+}
+
+// Construit la liste des sites publics exploitables, avec score thermique × social × urgence
+function buildPublicSites(rawSites){
+  // La requête Overpass utilise une bbox rectangulaire qui mord sur Thionville (limitrophe) —
+  // on filtre au polygone réel de la commune pour ne garder que le foncier de Yutz.
+  const rings=_contour?ringsOf(_contour.geometry):null;
+  const inYutz=rings?rawSites.filter(s=>inside(s.lon,s.lat,rings)):rawSites;
+  const filtered=inYutz.length>0?inYutz:rawSites;
+  publicSites=filtered.map((s,i)=>{
+    const ST=SITE_TYPES[s.siteType];
+    const gs=siteGridStats(s.lon,s.lat);
+    // Plancher de potentiel : un site bâti (école, voirie, parking…) n’est quasiment
+    // jamais « déjà frais » dans la réalité, même si le point tombe sur une maille
+    // synthétique mal calée. Seuls les espaces verts peuvent légitimement être sous ce seuil.
+    const pot=s.siteType==='espace_vert'?gs.pot:Math.max(gs.pot,35);
+    const tmp=s.siteType==='espace_vert'?gs.tmp:Math.max(gs.tmp,36);
+    const vb=vulnerabilityBoost(s.lon,s.lat);
+    const sol=ST.solution(s.area_m2);
+    // Gain multi-composantes : arbres + désimper + prairie + ombrière + toiture s’additionnent,
+    // chacun avec sa propre vitesse de maturation (au lieu de ne créditer que l’action dominante).
+    const comps=siteComponents(sol,s.area_m2);
+    const dT=siteGain(comps,pot,20);     // gain à pleine maturité (~20 ans, sujets fort développement)
+    const dT1an=siteGain(comps,pot,1);   // gain dès la première année (effet immédiat)
+    // Efficacité : gain thermique à maturité par 100 k€ investis — comparable entre tous les sites.
+    const efficacite=(dT/sol.cost)*100000;
+    const urgent=tmp>=42;
+    const score=pot*(1+vb)*(1+urgenceBoost(tmp));
+    return{id:i,siteType:s.siteType,name:s.name,lon:s.lon,lat:s.lat,area_m2:s.area_m2,
+      pot,tmp,vb,urgent,score,efficacite,dT1an,comps,
+      tier:ST.tier,col:ST.col,icon:ST.icon,label:ST.label,solution:sol,dT};
+  });
+  // Coût pour traiter l’intégralité du foncier public identifié — sert à afficher la part
+  // du potentiel couverte à chaque niveau de budget (le plafond du curseur reste un montant
+  // réaliste pour UN dossier, pas la couverture à 100 %, qui se phase sur plusieurs années).
+  totalPotentialCost=publicSites.reduce((s,x)=>s+x.solution.cost,0);
+}
+let totalPotentialCost=0;
+
+// Facteur de vulnérabilité sociale d'une maille (0..1.5 environ)
+function vulnerabilityBoost(lon,lat){
+  let best=0;
+  for(const p of pois){
+    const dm=dist(lon,lat,p.lon,p.lat)*111320;
+    let b=0;
+    if(dm<150)      b=p.priority*0.50;
+    else if(dm<300) b=p.priority*0.28;
+    else if(dm<500) b=p.priority*0.12;
+    if(b>best)best=b;
+  }
+  return best;
+}
+
+// POIs les plus proches d'un point (pour affichage dans détail maille)
+function nearbyPOIs(lon,lat,maxDm=600){
+  return pois.map(p=>({...p,dm:Math.round(dist(lon,lat,p.lon,p.lat)*111320)}))
+    .filter(p=>p.dm<maxDm).sort((a,b)=>a.dm-b.dm).slice(0,3);
+}
+
+/* ====== Strates ====== */
+const STRATE={
+  arbre:   {label:'Arbres',           ic:'🌳', col:'#2f7d4f', dT:[3,6]},
+  arbuste: {label:'Arbustes / haies', ic:'🌿', col:'#6aa84f', dT:[1,3]},
+  prairie: {label:'Prairie / herbe',  ic:'🌾', col:'#c4d870', dT:[1,2]},
+  toiture: {label:'Toiture végétale', ic:'🏠', col:'#7fa66a', dT:[1,3]},
+  aucun:   {label:'—',                ic:'✅', col:'#8a8a85', dT:[0,0]},
+};
+
+/* ====== Fonds de carte ====== */
+const G='https://data.geopf.fr/wmts?SERVICE=WMTS&VERSION=1.0.0&REQUEST=GetTile&STYLE=normal&TILEMATRIXSET=PM&TILEMATRIX={z}&TILEROW={y}&TILECOL={x}';
+const BASEMAPS={
+  plan:{tiles:[G+'&LAYER=GEOGRAPHICALGRIDSYSTEMS.PLANIGNV2&FORMAT=image/png'],attr:'IGN-F / Géoplateforme'},
+  satellite:{tiles:[G+'&LAYER=ORTHOIMAGERY.ORTHOPHOTOS&FORMAT=image/jpeg'],attr:'IGN-F / Géoplateforme'},
+  osm:{tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],attr:'© OpenStreetMap'}
+};
+
+/* ====== Thèmes ====== */
+const THEMES={
+  potentiel:{prop:'cpot', legend:[['#b5462f','très fort'],['#e8743b','fort'],['#e9b949','moyen'],['#cfe0a0','faible'],['#86c0a0','déjà frais']]},
+  occupation:{prop:'ccov', legend:[['#9aa0a6','imperméable'],['#c9a36b','sol nu'],['#d9d07a','culture'],['#a6cf6b','herbe'],['#3f7d3f','arbres'],['#5b9bd5','eau']]},
+  temperature:{prop:'ctmp', legend:[['#3b6fb0','~26 °C'],['#7fb0a0','~32 °C'],['#e9b949','~38 °C'],['#e8743b','~42 °C'],['#b5462f','~46 °C']]},
+};
+
+/* ====== Modèle d'occupation (illustratif, biaisé par la géographie réelle de Yutz) ====== */
+function hash(x,y){const n=Math.sin(x*127.1+y*311.7)*43758.5453;return n-Math.floor(n);}
+function vnoise(x,y){const xi=Math.floor(x),yi=Math.floor(y),xf=x-xi,yf=y-yi;
+  const tl=hash(xi,yi),tr=hash(xi+1,yi),bl=hash(xi,yi+1),br=hash(xi+1,yi+1);
+  const u=xf*xf*(3-2*xf),v=yf*yf*(3-2*yf);
+  return tl*(1-u)*(1-v)+tr*u*(1-v)+bl*(1-u)*v+br*u*v;}
+function dist(ax,ay,bx,by){const dx=ax-bx,dy=ay-by;return Math.sqrt(dx*dx+dy*dy);}
+
+function classify(lon,lat){
+  if(dist(lon,lat,6.2065,49.3465)<0.0034) return cell('eau');
+  if(lon<6.171){ return vnoise(lon*300,lat*300)>0.45?cell('eau'):cell('arbres'); }
+  const urb=1.0*Math.exp(-dist(lon,lat,6.1935,49.3585)/0.017)
+           +0.8*Math.exp(-dist(lon,lat,6.1985,49.3665)/0.014)
+           +0.7*Math.exp(-dist(lon,lat,6.2050,49.3640)/0.011)
+           +0.55*(vnoise(lon*210,lat*210)-0.25);
+  const veg=vnoise(lon*250+3,lat*250+7);
+  let cov;
+  if(urb>0.85){ cov=veg<0.72?'imper':'herbe'; }
+  else if(urb>0.42){ cov=veg<0.42?'imper':veg<0.8?'herbe':'arbres'; }
+  else { cov=veg<0.5?'culture':veg<0.86?'herbe':'arbres'; if(vnoise(lon*130,lat*130)>0.85) cov='solnu'; }
+  return cell(cov,lon,lat);
+}
+function cell(cov,lon,lat){
+  let sub=null;
+  if(cov==='imper'){const r=vnoise((lon||0)*420,(lat||0)*420);sub=r<0.55?'bati':r<0.82?'voirie':'parking';}
+  const baseT={imper:43,solnu:39,culture:33,herbe:32,arbres:28,eau:26}[cov];
+  const subT=sub==='parking'?3:sub==='voirie'?2:sub==='bati'?1:0;
+  const tmp=Math.round(baseT+subT+(vnoise((lon||1)*520,(lat||1)*520)-0.5)*4);
+  let pot={imper:84,solnu:62,culture:24,herbe:44,arbres:10,eau:0}[cov];
+  if(sub==='parking')pot+=10; if(sub==='bati')pot-=8; if(sub==='voirie')pot+=4;
+  pot=Math.max(0,Math.min(100,Math.round(pot+(tmp-36)*0.8)));
+  // Score de vulnérabilité sociale (boost multiplicateur pour le tri du programme)
+  const vb=(lon&&lat)?vulnerabilityBoost(lon,lat):0;
+  let strate,action;
+  if(cov==='imper'&&sub==='bati'){strate='toiture';action='Végétaliser la toiture (sedum + vivaces) + arbres en pied de façade.';}
+  else if(cov==='imper'&&sub==='voirie'){strate='arbre';action='Désimperméabiliser la chaussée, arbres d’alignement en fosse + noue plantée.';}
+  else if(cov==='imper'&&sub==='parking'){strate='arbre';action='Ombrières végétalisées, arbres en fosse, revêtement perméable.';}
+  else if(cov==='solnu'){strate='arbre';action='Boisement / micro-forêt sur sol nu : plantation dense et paillage.';}
+  else if(cov==='herbe'){strate='arbre';action='Planter arbres + strate arbustive ; convertir pelouse rase en prairie fleurie.';}
+  else if(cov==='culture'){strate='arbuste';action='Haies champêtres multi-strates en lisière de parcelle.';}
+  else if(cov==='arbres'){strate='aucun';action='Déjà frais — conserver et densifier le sous-bois.';}
+  else {strate='aucun';action='Plan d’eau — préserver et planter les berges.';}
+  return {cov,sub,tmp,pot,vb,strate,action};
+}
+const COVLAB={imper:'Imperméable',solnu:'Sol nu / friche',culture:'Culture / champ',herbe:'Herbe / pelouse',arbres:'Couvert arboré',eau:'Eau'};
+const SUBLAB={bati:'bâti / toiture',voirie:'voirie',parking:'parking'};
+function covColor(c){return{imper:'#9aa0a6',solnu:'#c9a36b',culture:'#d9d07a',herbe:'#a6cf6b',arbres:'#3f7d3f',eau:'#5b9bd5'}[c];}
+function potColor(p){return p>=80?'#b5462f':p>=62?'#e8743b':p>=46?'#e9b949':p>=28?'#cfe0a0':'#86c0a0';}
+function tmpColor(t){return t>=44?'#b5462f':t>=40?'#e8743b':t>=36?'#e9b949':t>=31?'#7fb0a0':'#3b6fb0';}
+
+/* ====== Carte ====== */
+let map,grid={type:'FeatureCollection',features:[]},agg=null;
+const CELL_M=110,LAT0=49.357,DLAT=CELL_M/111320,DLON=CELL_M/(111320*Math.cos(LAT0*Math.PI/180));
+function initMap(){
+  map=new maplibregl.Map({container:'map',attributionControl:false,
+    style:{version:8,sources:{base:{type:'raster',tiles:BASEMAPS.plan.tiles,tileSize:256,attribution:BASEMAPS.plan.attr}},
+      layers:[{id:'bg',type:'background',paint:{'background-color':'#e9ece3'}},{id:'base',type:'raster',source:'base'}]},
+    center:[6.197,49.357],zoom:13.1});
+  map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-right');
+  map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
+}
+let _contour=null;
+function loadData(){
+  // Charger contour communal ET sites publics en parallèle
+  Promise.all([
+    fetch('/yutz_contour.geojson').then(r=>r.json()),
+    fetchPublicSites(),
+  ]).then(([gj,rawSites])=>{
+    _contour=gj;
+    buildGrid(ringsOf(gj.geometry));   // fond thermique (utilise pois déjà chargés pour la vulnérabilité)
+    buildPublicSites(rawSites);        // sites actionnables (utilise la grille pour le potentiel thermique)
+    const tn=document.getElementById('tipN');if(tn)tn.textContent=grid.features.length.toLocaleString('fr-FR');
+    renderLegend('potentiel');
+    currentProgram=buildSiteProgram(currentBudget);
+    updateBudgetUI();
+    renderDashboard();
+    renderSiteFilters();
+    addGridLayers();
+  }).catch(e=>{const p=document.getElementById('panel');if(p)p.innerHTML='<p class="hint">Erreur ('+e.message+').</p>';});
+}
+const SITE_SHORT={ecole:'École',ehpad:'EHPAD',place:'Place',parking:'Parking',equipement:'Équipement',voirie:'Voirie',espace_vert:'Espace vert'};
+let hiddenTypes=new Set();
+function renderSiteFilters(){
+  const el=document.getElementById('siteFilters');
+  if(!el)return;
+  el.innerHTML=Object.keys(SITE_TYPES).map(t=>{
+    const ST=SITE_TYPES[t],n=publicSites.filter(s=>s.siteType===t).length;
+    return '<span class="fchip'+(hiddenTypes.has(t)?' off':'')+'" data-t="'+t+'"><span class="dot" style="background:'+ST.col+'"></span>'+ST.icon+' '+SITE_SHORT[t]+'<span class="eff">('+n+')</span></span>';
+  }).join('');
+  [...el.children].forEach(chip=>chip.addEventListener('click',()=>{
+    const t=chip.dataset.t;
+    if(hiddenTypes.has(t))hiddenTypes.delete(t);else hiddenTypes.add(t);
+    chip.classList.toggle('off');
+    refreshSiteLayers();
+  }));
+}
+function refreshSiteLayers(){
+  if(!map||!map.getLayer('site-circle-in'))return;
+  const typeFilter=['!',['in',['get','siteType'],['literal',[...hiddenTypes]]]];
+  const selIds=currentProgram?[...currentProgram.selIds]:[];
+  const inSel=['in',['get','siteId'],['literal',selIds]];
+  map.setFilter('site-circle-out',['all',typeFilter,['!',inSel]]);
+  map.setFilter('site-circle-in',['all',typeFilter,inSel]);
+  map.setFilter('site-glow',['all',typeFilter,inSel]);
+}
+function addGridLayers(){
+  if(!map||!map.isStyleLoaded()){if(map&&map.resize)map.resize();return void setTimeout(addGridLayers,160);}
+  if(map.getSource('grid'))return;
+  map.addSource('grid',{type:'geojson',data:grid});
+  map.addLayer({id:'grid-fill',type:'fill',source:'grid',paint:{'fill-color':['get','cpot'],'fill-opacity':0.55}});
+  map.addLayer({id:'grid-line',type:'line',source:'grid',paint:{'line-color':'#ffffff','line-width':0.25,'line-opacity':0.35}});
+  map.addSource('yutz',{type:'geojson',data:_contour});
+  map.addLayer({id:'yutz-line',type:'line',source:'yutz',paint:{'line-color':'#173a25','line-width':2.2,'line-dasharray':[2,1.3]}});
+  map.addSource('sel',{type:'geojson',data:{type:'FeatureCollection',features:[]}});
+  map.addLayer({id:'sel-line',type:'line',source:'sel',paint:{'line-color':'#1d231f','line-width':2.4}});
+  try{const b=new maplibregl.LngLatBounds();ringsOf(_contour.geometry).forEach(r=>r.forEach(p=>b.extend(p)));map.fitBounds(b,{padding:40,duration:0});}catch(e){}
+  map.on('click','grid-fill',e=>selectCell(e.features[0]));
+  map.on('mousemove','grid-fill',()=>map.getCanvas().style.cursor='pointer');
+  map.on('mouseleave','grid-fill',()=>map.getCanvas().style.cursor='');
+  // Couche du foncier public actionnable (seul foncier sur lequel la commune peut intervenir)
+  const sitesGJ={type:'FeatureCollection',features:publicSites.map(s=>({
+    type:'Feature',id:s.id,geometry:{type:'Point',coordinates:[s.lon,s.lat]},
+    properties:{siteId:s.id,siteType:s.siteType,name:s.name,col:s.col,icon:s.icon,tier:s.tier,label:s.label}
+  }))};
+  map.addSource('sites-src',{type:'geojson',data:sitesGJ});
+  // Sites identifiés mais non retenus au budget actuel : petits points pâles — visibles pour montrer
+  // l’ampleur du besoin réel, mais clairement secondaires face au programme effectivement financé.
+  map.addLayer({id:'site-circle-out',type:'circle',source:'sites-src',paint:{
+    'circle-radius':4.5,'circle-color':['get','col'],'circle-stroke-width':0,'circle-opacity':0.4}});
+  map.addLayer({id:'site-glow',type:'circle',source:'sites-src',
+    filter:['in',['get','siteId'],['literal',[]]],
+    paint:{'circle-radius':17,'circle-color':'#ffffff','circle-opacity':0.55,'circle-blur':0.6}});
+  // Sites dans le programme courant : pleine taille, pleine couleur, halo blanc.
+  map.addLayer({id:'site-circle-in',type:'circle',source:'sites-src',
+    filter:['in',['get','siteId'],['literal',[]]],
+    paint:{'circle-radius':['match',['get','tier'],1,11,2,9,8],
+    'circle-color':['get','col'],'circle-stroke-color':'#fff','circle-stroke-width':2,'circle-opacity':0.95}});
+  ['site-circle-out','site-circle-in'].forEach(id=>{
+    map.on('click',id,e=>{
+      const s=publicSites.find(x=>x.id===e.features[0].properties.siteId);
+      if(s)selectSite(s);
+    });
+    map.on('mousemove',id,()=>map.getCanvas().style.cursor='pointer');
+    map.on('mouseleave',id,()=>map.getCanvas().style.cursor='');
+  });
+  // Appliquer le programme courant et les filtres sur la carte
+  refreshSiteLayers();
+}
+function ringsOf(geom){return geom.type==='Polygon'?[geom.coordinates[0]]:geom.coordinates.map(p=>p[0]);}
+function pip(lon,lat,ring){let c=false;for(let i=0,j=ring.length-1;i<ring.length;j=i++){const xi=ring[i][0],yi=ring[i][1],xj=ring[j][0],yj=ring[j][1];
+  if(((yi>lat)!=(yj>lat))&&(lon<(xj-xi)*(lat-yi)/(yj-yi)+xi))c=!c;}return c;}
+function inside(lon,lat,rings){return rings.some(r=>pip(lon,lat,r));}
+function buildGrid(rings){
+  let minx=180,miny=90,maxx=-180,maxy=-90;rings.forEach(r=>r.forEach(p=>{minx=Math.min(minx,p[0]);miny=Math.min(miny,p[1]);maxx=Math.max(maxx,p[0]);maxy=Math.max(maxy,p[1]);}));
+  let id=0;
+  for(let y=miny;y<maxy;y+=DLAT)for(let x=minx;x<maxx;x+=DLON){
+    const cx=x+DLON/2,cy=y+DLAT/2;if(!inside(cx,cy,rings))continue;
+    const m=classify(cx,cy);
+    grid.features.push({type:'Feature',id:id++,properties:{
+      cov:m.cov,sub:m.sub||'',tmp:m.tmp,pot:m.pot,vb:m.vb||0,strate:m.strate,action:m.action,
+      lon:cx,lat:cy,
+      cpot:potColor(m.pot),ccov:covColor(m.cov),ctmp:tmpColor(m.tmp)},
+      geometry:{type:'Polygon',coordinates:[[[x,y],[x+DLON,y],[x+DLON,y+DLAT],[x,y+DLAT],[x,y]]]}});
+  }
+  computeAgg();
+}
+function computeAgg(){
+  const a={n:grid.features.length,cov:{},traitable:0,dT:0,strate:{}};
+  grid.features.forEach(f=>{const p=f.properties;a.cov[p.cov]=(a.cov[p.cov]||0)+1;
+    if(p.strate!=='aucun'){a.traitable++;const d=STRATE[p.strate].dT;a.dT+=(d[0]+d[1])/2*(p.pot/100);a.strate[p.strate]=(a.strate[p.strate]||0)+1;}});
+  agg=a;
+}
+
+/* ====== Programme & budget ====== */
+const FIN=[['Fonds Vert — Renaturation des villes',0.40],['Agence de l’eau Rhin-Meuse',0.20],['Région Grand Est',0.10],['Département de la Moselle',0.10],['Autofinancement — commune de Yutz',0.20]];
+let currentBudget=2000000;
+let currentProgram=null;
+
+/* Sélection en entonnoir budgétaire : tier 1 (écoles/EHPAD) toujours d’abord, puis tier 2
+   (places/parkings), tier 3 (voiries/équipements), tier 4 (espaces verts) si le budget le permet.
+   À budget serré, on concentre sur les sites les plus vulnérables plutôt que de tout diluer. */
+function buildSiteProgram(maxBudget){
+  const tiers=[1,2,3,4];
+  const sorted=tiers.flatMap(t=>publicSites.filter(s=>s.tier===t).sort((a,b)=>b.score-a.score));
+  let remaining=maxBudget;
+  const sel=[],selIds=new Set();
+  for(const s of sorted){
+    if(s.solution.cost<=remaining){sel.push(s);selIds.add(s.id);remaining-=s.solution.cost;}
+  }
+  const total=maxBudget-remaining;
+  const n_arbres=sel.reduce((s,x)=>s+x.solution.n_arbres,0);
+  const desimper=sel.reduce((s,x)=>s+x.solution.desimper_m2,0);
+  const prairie=sel.reduce((s,x)=>s+x.solution.prairie_m2,0);
+  const toiture=sel.filter(x=>x.solution.strate==='toiture').reduce((s,x)=>s+x.area_m2,0);
+  const HORZ=[{t:1,year:2027},{t:5,year:2031},{t:12,year:2038},{t:20,year:2046}];
+  const dTByHorizon=HORZ.map(h=>{
+    const avg=sel.reduce((s,site)=>s+siteGain(site.comps,site.pot,h.t),0)/Math.max(1,sel.length);
+    return{t:h.t,year:h.year,dT:avg};
+  });
+  const dTmax=sel.reduce((s,site)=>s+site.dT,0)/Math.max(1,sel.length);
+  const byTier=tiers.map(t=>({tier:t,sites:sel.filter(s=>s.tier===t),all:publicSites.filter(s=>s.tier===t)}));
+  return{
+    N:sel.length,sel,selIds,total,remaining,
+    n_arbres,desimper,prairie,toiture,
+    dT:dTmax,dTByHorizon,byTier,
+    eau:Math.round((desimper+toiture*0.6)*0.55),
+    co2:Math.round(n_arbres*0.02),
+    vegHa:(desimper*0.5+toiture+prairie)/10000,
+  };
+}
+
+/* ====== Formatage ====== */
+function fmtM(n){
+  if(n>=1e6) return (n/1e6).toLocaleString('fr-FR',{maximumFractionDigits:1})+' M€';
+  return (n/1000).toLocaleString('fr-FR',{maximumFractionDigits:0})+' k€';
+}
+function fmtE(n){return Math.round(n).toLocaleString('fr-FR')+' €';}
+function fmtN(n){return Math.round(n).toLocaleString('fr-FR');}
+
+/* ====== Budget slider ====== */
+function updateBudgetUI(){
+  if(!currentProgram)return;
+  document.getElementById('budgetLabel').textContent=fmtM(currentBudget);
+  const el=document.getElementById('budgetCells');
+  const pct=totalPotentialCost>0?Math.round(currentProgram.total/totalPotentialCost*100):0;
+  if(el)el.textContent='→ '+currentProgram.N+' sites publics · '+fmtE(currentProgram.total)+' ('+pct+'% du potentiel total)';
+}
+document.getElementById('budgetSlider').addEventListener('input',function(){
+  currentBudget=+this.value;
+  if(!agg)return;
+  currentProgram=buildSiteProgram(currentBudget);
+  updateBudgetUI();
+  renderDashboard();
+  refreshSiteLayers();
+});
+
+/* ====== Zone de Yutz (localisation approximative par coordonnées) ====== */
+function zoneLabel(lon,lat){
+  if(lon<6.175) return 'Berges de la Moselle';
+  if(lat>49.366) return 'Yutz-Cité / Quartier nord';
+  if(lon>6.201&&lat>49.360) return 'Zone d’activités NE';
+  if(lat<49.350) return 'Quartier sud';
+  if(lon<6.192) return 'Centre-bourg';
+  return 'Quartier pavillonnaire';
+}
+
+/* ====== Panneau : tableau de bord ville ====== */
+const panel=document.getElementById('panel');
+const TIER_LABEL={1:'Tier 1 — Écoles & EHPAD (priorité absolue)',2:'Tier 2 — Places & parkings publics',3:'Tier 3 — Voiries & équipements publics',4:'Tier 4 — Parcs & espaces verts'};
+function renderDashboard(){
+  if(!agg||!currentProgram)return;
+  const P=currentProgram;
+  const h=P.dTByHorizon;
+  const tcurve='<div class="tcurve">'+h.map((hh,i)=>(i>0?'<span class="arr">→</span>':'')+'<div class="year"><div class="y-val">−'+hh.dT.toFixed(1)+'°C</div><div class="y-lab">'+hh.year+'</div></div>').join('')+'</div>';
+  const urgentN=P.sel.filter(s=>s.urgent).length,urgentTotal=publicSites.filter(s=>s.urgent).length;
+  const pctBudget=totalPotentialCost>0?Math.round(P.total/totalPotentialCost*100):0;
+  const siteRow=s=>'<div class="bar"><span class="lab" style="width:auto;flex:1">'+(s.urgent?'🔥 ':'')+s.icon+' '+s.name+'</span>'+
+    '<span class="val" style="width:auto;color:var(--muted);font-size:11px;margin-right:6px">+'+s.efficacite.toFixed(1)+'°C/100k€</span>'+
+    '<span class="val" style="width:auto;font-weight:600">'+fmtE(s.solution.cost)+'</span></div>';
+
+  const tierRows=P.byTier.map(bt=>{
+    const n=bt.sites.length,total=bt.all.length,active=n>0;
+    return '<div class="card" style="margin-bottom:8px;'+(active?'':'opacity:.5')+'">'+
+      '<h3 style="display:flex;justify-content:space-between;align-items:center">'+
+        '<span>'+TIER_LABEL[bt.tier]+'</span>'+
+        '<span style="font-weight:600;color:var(--green-d);text-transform:none;letter-spacing:0;font-size:12.5px">'+n+' / '+total+'</span>'+
+      '</h3>'+
+      (active?bt.sites.slice(0,4).map(siteRow).join('')
+        +(bt.sites.length>4?'<p class="hint" style="margin:4px 0 0">+ '+(bt.sites.length-4)+' autres sites de ce type</p>':'')
+        :'<p class="hint" style="margin:0">Budget insuffisant pour ce tier — augmentez le curseur pour l’activer.</p>')+
+    '</div>';
+  }).join('');
+
+  panel.innerHTML=
+    '<h2 class="sec">Yutz — foncier public identifié</h2>'+
+    '<p class="hint" style="margin-bottom:6px">'+publicSites.length+' sites publics recensés (écoles, EHPAD, voiries, parkings, places, équipements, espaces verts). Seul le <b>domaine public</b> peut faire l’objet d’un programme communal financé — le foncier privé en est exclu.</p>'+
+    '<div class="stat">'+
+      '<div class="b"><div class="n">'+publicSites.length+'</div><div class="l">sites publics identifiés</div></div>'+
+      '<div class="b"><div class="n">'+P.N+'</div><div class="l">sites dans le programme</div></div>'+
+      '<div class="b"><div class="n" style="color:var(--green-d)">'+fmtE(P.total)+'</div><div class="l">coût total HT</div></div>'+
+    '</div>'+
+    '<div class="bar" style="margin-bottom:2px"><span class="lab" style="width:auto;flex:1">Couverture du potentiel identifié</span><span class="track" style="flex:2"><span class="fill" style="width:'+pctBudget+'%;background:var(--green)"></span></span><span class="val" style="width:auto;font-weight:600">'+pctBudget+'%</span></div>'+
+    '<p class="hint" style="margin:0 0 10px">Le plafond du curseur (6 M€) vise une demande de subvention réaliste pour <b>un</b> dossier, pas 100 % du territoire : traiter l’intégralité des '+publicSites.length+' sites coûterait '+fmtM(totalPotentialCost)+' — à phaser sur plusieurs dossiers/années, pas en un seul Fonds Vert.</p>'+
+    (urgentTotal>0?'<div class="warn-box" style="margin-bottom:10px">🔥 <b>'+urgentTotal+' sites déjà à 42 °C ou plus</b> en pointe estivale ('+urgentN+' traités dans ce programme). Ces sites reçoivent un bonus d’urgence dans le tri — agir vite y prime sur le gain théorique maximal.</div>':'')+
+    '<div class="card" style="margin-bottom:10px"><h3>Gain thermique projeté dans le temps</h3>'+
+    tcurve+
+    '<p class="hint" style="margin:4px 0 0;font-size:11.5px"><b>2027</b> : désimperméabilisation, prairies et voiles d’ombrage agissent dès l’installation — effet <b>immédiat</b>. Arbres de fort développement en plein effet dès <b>2046</b> — effet <b>durable</b> (15–20 ans, pas 30). Le programme combine systématiquement les deux.</p></div>'+
+    '<div class="split" style="margin-bottom:8px"><b>Entonnoir budgétaire — ordre de priorité</b></div>'+
+    '<p class="hint" style="margin:0 0 8px">Tri par maille : potentiel thermique × vulnérabilité sociale × urgence (température déjà atteinte). <span style="color:var(--muted)">+X °C/100k€</span> = gain à maturité par 100 000 € investis, pour comparer l’efficacité des sites entre eux.</p>'+
+    tierRows+
+    '<button class="genbtn" id="genDossier">📄 Générer le dossier de subvention (Fonds Vert)</button>'+
+    '<p class="hint" style="margin-top:8px">Le dossier détaille chaque site retenu : travaux précis, espèces, coût et délai d’effet.</p>';
+  const gd=document.getElementById('genDossier');if(gd)gd.addEventListener('click',openDossier);
+}
+
+/* ====== Panneau : détail d'une maille (fond thermique, informatif) ====== */
+function selectCell(f){
+  map.getSource('sel').setData({type:'FeatureCollection',features:[{type:'Feature',geometry:f.geometry,properties:{}}]});
+  const p=f.properties;
+  const facteur=(lab,disp,num,col,max)=>'<div class="bar"><span class="lab">'+lab+'</span><span class="track"><span class="fill" style="width:'+Math.min(100,Math.max(0,num/(max||100)*100))+'%;background:'+col+'"></span></span><span class="val">'+disp+'</span></div>';
+  let h='<button class="back" id="back">← Vue d’ensemble</button>'+
+    '<div class="dhead"><span class="ico" style="background:'+potColor(p.pot)+'33">'+coverIcon(p.cov)+'</span>'+
+    '<div><h2>'+COVLAB[p.cov]+(p.sub?' — '+SUBLAB[p.sub]:'')+'</h2><div class="sub">'+zoneLabel(+p.lon||0,+p.lat||0)+' · ≈ '+(CELL_M*CELL_M).toLocaleString('fr-FR')+' m²</div></div>'+
+    '</div>'+
+    '<div class="card">'+
+      '<h3>État thermique (fond de carte)</h3>'+
+      facteur('Température surface',p.tmp+' °C',p.tmp,tmpColor(p.tmp),50)+
+      facteur('Potentiel de fraîcheur',p.pot,p.pot,potColor(p.pot),100)+
+      '<div class="verdict">'+(p.pot>=62?'Zone à fort gain thermique':p.pot>=28?'Gain modéré':'Déjà fraîche — à préserver')+'</div>'+
+    '</div>'+
+    '<div class="warn-box">⚠️ Maille affichée à titre <b>indicatif</b> (diagnostic thermique de fond, foncier public ou privé confondus). La commune ne peut financer des travaux que sur le <b>domaine public</b> — voirie, parkings, places, écoles, EHPAD, équipements, espaces verts. Cliquez un <b>cercle coloré</b> sur la carte pour voir le programme d’action chiffré.</div>';
+  panel.innerHTML=h;
+  document.getElementById('back').addEventListener('click',()=>{map.getSource('sel').setData({type:'FeatureCollection',features:[]});renderDashboard();});
+}
+function coverIcon(c){return{imper:'🧱',solnu:'🟫',culture:'🌾',herbe:'🌱',arbres:'🌳',eau:'💧'}[c];}
+
+/* ====== Panneau : détail d'un site public (le cœur du programme) ====== */
+function selectSite(s){
+  map.getSource('sel').setData({type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'Point',coordinates:[s.lon,s.lat]},properties:{}}]});
+  const sol=s.solution;
+  const inProg=currentProgram&&currentProgram.selIds.has(s.id);
+  const facteur=(lab,disp,num,col,max)=>'<div class="bar"><span class="lab">'+lab+'</span><span class="track"><span class="fill" style="width:'+Math.min(100,Math.max(0,num/(max||100)*100))+'%;background:'+col+'"></span></span><span class="val">'+disp+'</span></div>';
+  let h='<button class="back" id="back">← Vue d’ensemble</button>'+
+    '<div class="dhead"><span class="ico" style="background:'+s.col+'33">'+s.icon+'</span>'+
+    '<div><h2>'+s.name+'</h2><div class="sub">'+s.label+' · ≈ '+fmtN(s.area_m2)+' m² · domaine public</div></div>'+
+    (inProg?'<span style="margin-left:auto;font-size:11px;background:#eef3ea;color:var(--green-d);padding:3px 9px;border-radius:20px;font-weight:600">✓ dans le programme</span>':'<span style="margin-left:auto;font-size:11px;background:#fbeee9;color:var(--red);padding:3px 9px;border-radius:20px;font-weight:600">hors budget actuel</span>')+
+    '</div>'+
+    '<div class="card">'+
+      '<h3>Diagnostic</h3>'+
+      facteur('Température actuelle',s.tmp+' °C',s.tmp,tmpColor(s.tmp),50)+
+      facteur('Potentiel de fraîcheur',s.pot,s.pot,potColor(s.pot),100)+
+      (s.vb>0?facteur('Priorité sociale','+'+Math.round(s.vb*100)+'%',s.vb*100,'#b5462f',150):'')+
+      (s.urgent?'<div class="warn-box">🔥 <b>Site urgent :</b> température déjà ≥ 42 °C en pointe estivale. Reçoit un bonus de priorité dans le tri, indépendamment du gain théorique maximal.</div>':'')+
+      '<div class="verdict">'+(s.tier===1?'🎯 Priorité absolue — population vulnérable (enfants / personnes âgées) exposée directement sur site.':s.tier===2?'Priorité moyenne — espace public très fréquenté.':s.tier===3?'Priorité standard — voirie ou équipement public.':'Priorité basse — activée seulement à budget large.')+'</div>'+
+    '</div>'+
+    '<div class="card"><h3>Travaux recommandés — '+sol.label+'</h3>'+
+      '<div class="interv">🛠️ <span>'+sol.desc+'</span></div>'+
+      '<div style="margin-top:8px"><span class="strate" style="background:'+STRATE[sol.strate].col+'22;color:'+STRATE[sol.strate].col+'">'+STRATE[sol.strate].ic+' '+STRATE[sol.strate].label+'</span></div>'+
+      '<p class="hint" style="margin-top:8px"><b>Espèces recommandées :</b> '+sol.species+'</p>'+
+      '<div class="stat" style="margin-top:10px">'+
+        '<div class="b"><div class="n" style="color:var(--green-d)">'+fmtE(sol.cost)+'</div><div class="l">coût estimé HT</div></div>'+
+        '<div class="b"><div class="n" style="color:var(--green-d)">+'+s.efficacite.toFixed(1)+'°C</div><div class="l">indicateur d’efficacité<br>par 100 000 € investis</div></div>'+
+      '</div>'+
+    '</div>'+
+    materialsCard(sol);
+  const t1=siteGain(s.comps,s.pot,1).toFixed(1);
+  const t8=siteGain(s.comps,s.pot,8).toFixed(1);
+  const t20=siteGain(s.comps,s.pot,20).toFixed(1);
+  h+='<div class="card"><h3>Effet immédiat & effet durable</h3>'+
+    '<div class="stat" style="margin-bottom:2px">'+
+      '<div class="b"><div class="n" style="color:var(--amber)">−'+t1+' °C</div><div class="l">⚡ effet immédiat (2027, 1 an)</div></div>'+
+      '<div class="b"><div class="n" style="color:var(--green-d)">−'+t20+' °C</div><div class="l">🌳 effet durable (2046, 20 ans)</div></div>'+
+    '</div>'+
+    '<div class="tcurve">'+
+      '<div class="year"><div class="y-val">−'+t1+'°C</div><div class="y-lab">2027<br>(1 an)</div></div>'+
+      '<span class="arr">→</span>'+
+      '<div class="year"><div class="y-val">−'+t8+'°C</div><div class="y-lab">2034<br>(8 ans)</div></div>'+
+      '<span class="arr">→</span>'+
+      '<div class="year"><div class="y-val">−'+t20+'°C</div><div class="y-lab">2046<br>(20 ans)</div></div>'+
+    '</div>';
+  if(sol.strate==='arbre'){
+    h+='<div class="warn-box">⚠️ <b>Sujets de fort développement :</b> désimperméabilisation, prairie et voiles d’ombrage soulagent dès 2026-2027 ; les arbres atteignent leur plein effet vers 2046 (15–20 ans, au lieu de 25–30 ans avec de jeunes plants).</div>';
+  }
+  h+='</div>';
+  if(s.siteType!=='ecole'&&s.siteType!=='ehpad'){
+    const near=nearbyPOIs(s.lon,s.lat);
+    if(near.length>0){
+      h+='<div class="card"><h3>Populations vulnérables à proximité</h3>'+
+        near.map(n=>'<div class="bar"><span class="lab" style="width:auto;flex:1">'+POI_ICON[n.type]+' '+n.name+'</span><span class="val" style="width:auto;color:var(--ink);font-weight:600">'+n.dm+' m</span></div>').join('')+
+      '</div>';
+    }
+  }
+  panel.innerHTML=h;
+  document.getElementById('back').addEventListener('click',()=>{map.getSource('sel').setData({type:'FeatureCollection',features:[]});renderDashboard();});
+}
+
+/* ====== Légende + contrôles ====== */
+function renderLegend(theme){
+  const t=THEMES[theme],lab={potentiel:'Potentiel',occupation:'Occupation',temperature:'Temp. surface'}[theme];
+  document.getElementById('legend').innerHTML='<span class="ti">'+lab+' :</span>'+t.legend.map(([c,l])=>'<span><span class="sw" style="background:'+c+'"></span>'+l+'</span>').join('');
+}
+document.getElementById('theme').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));
+  if(map&&map.getLayer('grid-fill'))map.setPaintProperty('grid-fill','fill-color',['get',THEMES[b.dataset.v].prop]);
+  renderLegend(b.dataset.v);});
+document.getElementById('basemap').addEventListener('click',e=>{const b=e.target.closest('button');if(!b)return;
+  [...e.currentTarget.children].forEach(x=>x.classList.toggle('on',x===b));
+  if(map&&map.getSource('base'))map.getSource('base').setTiles(BASEMAPS[b.dataset.v].tiles);});
+
+/* ====== Dossier de subvention ====== */
+function openDossier(){
+  const P=currentProgram||buildSiteProgram(currentBudget);
+  const imperPct=Math.round((agg.cov.imper||0)/agg.n*100);
+  const h=P.dTByHorizon;
+
+  /* ---- Lignes du programme, agrégées par type de solution ---- */
+  const byLabel={};
+  P.sel.forEach(s=>{
+    const k=s.solution.label;
+    if(!byLabel[k])byLabel[k]={n:0,cost:0,delai:s.solution.delai};
+    byLabel[k].n++;byLabel[k].cost+=s.solution.cost;
+  });
+  const lignes=Object.entries(byLabel).sort((a,b)=>b[1].cost-a[1].cost)
+    .map(([label,v])=>'<tr><td>'+label+'</td><td class="n">'+v.n+' site'+(v.n>1?'s':'')+'</td><td class="n">'+fmtE(v.cost/v.n)+' / site</td><td class="n">'+fmtE(v.cost)+'</td><td>'+v.delai+' ans</td></tr>').join('');
+
+  /* ---- Financement ---- */
+  const fin=FIN.map(([nom,t])=>'<tr><td>'+nom+'</td><td class="n">'+Math.round(t*100)+' %</td><td class="n">'+fmtE(P.total*t)+'</td></tr>').join('');
+
+  /* ---- Sites du programme, triés par tier puis score ---- */
+  const top=P.sel.slice(0,20);
+  let sitesHtml='';
+  top.forEach((s,i)=>{
+    const g1=siteGain(s.comps,s.pot,1).toFixed(1);
+    const g20=siteGain(s.comps,s.pot,20).toFixed(1);
+    const ref='YTZ-'+String(i+1).padStart(3,'0');
+    sitesHtml+='<tr><td style="font-weight:600;white-space:nowrap">'+ref+(s.urgent?' 🔥':'')+'</td>'+
+      '<td>'+s.name+'<br><span style="font-size:10px;color:var(--muted)">'+s.label+'</span></td>'+
+      '<td>'+s.solution.label+'</td>'+
+      '<td style="font-size:11.5px">'+s.solution.species+'</td>'+
+      '<td class="n">'+fmtE(s.solution.cost)+'</td>'+
+      '<td class="n" style="color:var(--amber)">−'+g1+'°C</td>'+
+      '<td class="n" style="color:var(--green-d)">−'+g20+'°C</td>'+
+      '<td class="n">+'+s.efficacite.toFixed(1)+'</td>'+
+      '</tr>';
+  });
+
+  /* ---- Projection temporelle : 4 bandes ---- */
+  const bandColors=['#f0faf4','#d9f0e4','#b5dfc8','#7fc4a4'];
+  const bandDescs=[
+    'Désimperméabilisation et prairies installées sur les premiers sites',
+    'Alignements arborés et toitures végétales en croissance',
+    'Jeunes arbres procurent un ombrage naissant, canopée en formation',
+    'Canopée à maturité, plein effet d’évapotranspiration et d’ombrage',
+  ];
+  const hbands=h.map((hh,i)=>'<div class="dz-hband" style="background:'+bandColors[i]+'"><div class="hy">'+hh.year+'</div><div class="hv" style="color:var(--green-d)">−'+hh.dT.toFixed(1)+'°C</div><div class="hl">'+bandDescs[i]+'</div></div>').join('');
+
+  /* ---- Phase KPIs ---- */
+  const ph1n=Math.ceil(P.N*0.4),ph2n=Math.ceil(P.N*0.35),ph3n=P.N-ph1n-ph2n;
+  const dT_ph1=(h[0].dT).toFixed(1),dT_ph2=(h[1].dT).toFixed(1),dT_ph3=(h[2].dT).toFixed(1);
+  const tierSummary=P.byTier.map(bt=>'<li><b>'+TIER_LABEL[bt.tier]+'</b> : '+bt.sites.length+' / '+bt.all.length+' sites retenus</li>').join('');
+
+  document.getElementById('dossier').innerHTML=
+    '<div class="dz-bar"><button class="primary" onclick="window.print()">⤓ Enregistrer en PDF</button><button onclick="closeDossier()">Fermer</button></div>'+
+    '<div class="dz-h1">Dossier de demande de subvention</div>'+
+    '<div class="dz-sub">Fonds Vert — « Renaturation des villes et villages » · Commune de Yutz (Moselle, 57757) · '+new Date().toLocaleDateString('fr-FR')+'</div>'+
+    '<div class="dz-band"><div class="t">Projet soumis</div><div class="v">Plan de fraîcheur urbaine de Yutz — foncier public · Budget : '+fmtE(P.total)+' HT</div></div>'+
+
+    '<h2>1. Contexte territorial et enjeux climatiques</h2>'+
+    '<p>La commune de Yutz (17 391 habitants, 14 km², Moselle) est exposée à un phénomène d’<b>îlot de chaleur urbain</b> significatif, accentué par un taux élevé de surfaces imperméables (<b>'+imperPct+' % du territoire</b>). Lors des vagues de chaleur estivales, les températures de surface relevées par satellite (Landsat/ECOSTRESS) dépassent <b>46 °C</b> dans le centre-bourg.</p>'+
+    '<p>Ce projet s’inscrit dans le <b>Plan Climat Air Énergie Territorial (PCAET)</b> de la Communauté d’Agglomération Portes de France – Thionville et dans le <b>Plan Local d’Urbanisme (PLU)</b> de Yutz (OAP Trame Verte et Bleue). Il répond à l’axe 3 du Fonds Vert « Améliorer le cadre de vie ».</p>'+
+    '<div class="dz-kpis" style="margin-top:10px">'+
+      '<div class="dz-kpi"><div class="n">'+imperPct+' %</div><div class="l">surfaces imperméables (diagnostic Canopée)</div></div>'+
+      '<div class="dz-kpi"><div class="n">46 °C</div><div class="l">température de surface max. été (modélisée)</div></div>'+
+      '<div class="dz-kpi"><div class="n">'+publicSites.length+'</div><div class="l">sites publics recensés sur la commune</div></div>'+
+    '</div>'+
+
+    '<h2>2. Méthode de diagnostic et de priorisation</h2>'+
+    '<p>Le diagnostic est réalisé en deux temps par la plateforme <b>Canopée</b> :</p>'+
+    '<ul>'+
+      '<li><b>Fond thermique</b> : scan intégral du territoire en grille de 110 × 110 m (NDVI Sentinel-2, LiDAR HD IGN, température de surface Landsat/ECOSTRESS) pour situer les zones de surchauffe.</li>'+
+      '<li><b>Filtre foncier public</b> : seuls les sites sur <b>domaine public</b> sont retenus pour le programme — voirie, trottoirs, parkings municipaux, places, écoles, EHPAD, équipements publics, espaces verts publics. Le foncier privé (jardins, toitures de particuliers) est exclu : la commune n’a pas la maîtrise d’ouvrage pour y intervenir directement.</li>'+
+    '</ul>'+
+    '<p>Chaque site public reçoit un <b>score de priorité</b> = potentiel thermique local × (1 + bonus de vulnérabilité sociale) × (1 + bonus d’urgence). Le bonus social s’applique si le site est à moins de 500 m d’une école, crèche ou EHPAD (facteur ×1,1 à ×2,5) : ce sont les populations les plus exposées à la chaleur. Le bonus d’urgence s’applique si le site dépasse déjà <b>36, 40 puis 44 °C</b> en pointe estivale (jusqu’à ×1,35) : un site déjà critique passe avant un site équivalent mais plus frais.</p>'+
+    '<p>Un <b>indicateur d’efficacité</b> (°C gagné par 100 000 € investis) est calculé pour chaque site et publié dans le tableau ci-dessous, pour comparer les interventions entre elles indépendamment de leur taille.</p>'+
+    '<p>La sélection se fait <b>en entonnoir budgétaire</b> :</p>'+
+    '<ul style="font-size:13px">'+tierSummary+'</ul>'+
+    '<p>À budget serré, seuls les tiers 1 et 2 sont activés : on concentre les moyens sur les écoles, EHPAD, places et parkings les plus fréquentés plutôt que de diluer l’effort. À budget large, l’ensemble du foncier public entre dans le programme. Chaque site cumule plusieurs actions simultanées — arbres, désimperméabilisation, prairie, voile d’ombrage — qui s’additionnent dans le calcul du gain thermique au lieu de ne compter que l’action dominante : un <b>effet immédiat</b> (désimperméabilisation, prairie, ombrière : 1 à 2 ans) et un <b>effet durable</b> (arbres de fort développement à maturité : 15 à 20 ans, contre 25–30 ans pour de jeunes plants).</p>'+
+
+    '<h3 style="margin-top:18px;font-size:14px">Veille technologique et choix des matériaux</h3>'+
+    '<p>Pour la désimperméabilisation, '+MATERIALS.desimper.length+' matériaux sont comparés site par site (stabilisé, pavés/dalles drainants, béton drainant carrossable, enrobé clair à albédo élevé type ÉcOasis®, retrait total en pleine terre) selon leur <b>ratio gain thermique / coût</b>, en tenant compte de la contrainte carrossable ou non. Pour les toitures, cool roof (peinture réfléchissante) et toiture végétale extensive sont comparés : la seconde est retenue par défaut car valorisée par l’axe « renaturation » du Fonds Vert (rétention d’eau, biodiversité), la première étant ~3 fois moins chère pour un effet de surface proche si seul le critère thermique prime. Les arbres sont plantés en fosse à fort volume de terre-pierre (type « fosse de Stockholm ») : ce dispositif a permis de doubler la vitesse de croissance des arbres urbains dans les retours d’expérience suédois.</p>'+
+    '<p style="font-size:12px;color:var(--muted)">Sources : CEREMA, Adaptaville/Plante &amp; Cité, Eiffage (ÉcOasis®/Bioklair®), Lawrence Berkeley National Laboratory Heat Island Group, Hélios Cool Roof, Espace Ombrage, Urbasense. Catalogue figé à la date d’édition du dossier — une veille périodique (et, en production, une base matériaux connectée type CSTB/ADEME) permettrait de l’actualiser.</p>'+
+    '<div class="dz-alert">⚠️ <b>Points de vigilance avant travaux :</b> un <b>diagnostic amiante/HAP</b> est obligatoire avant toute découpe d’enrobé ancien (les liants d’avant les années 2000 contiennent fréquemment du goudron de houille) — en cas de pollution, l’évacuation des déblais est reclassée en déchet dangereux et le coût augmente significativement. Un <b>repérage des réseaux enterrés</b> (DT-DICT) est requis avant tout terrassement. Ces postes ne sont pas budgétés dans les coûts indicatifs ci-dessous et doivent être chiffrés site par site avec le maître d’œuvre.</div>'+
+    '<div class="dz-alert">⚠️ <b>Note de transparence :</b> dans ce prototype, l’occupation du sol, les températures et l’inventaire du foncier public sont <i>modélisés</i> ou issus d’OpenStreetMap (Overpass API) à titre de démonstration. En production, le foncier public est vérifié sur le <b>cadastre</b> (nature juridique des parcelles) et les données IGN/Landsat réelles.</div>'+
+
+    '<h2>3. Programme d’actions retenu</h2>'+
+    '<table><thead><tr><th>Type d’intervention</th><th class="n">Sites</th><th class="n">Coût moyen</th><th class="n">Montant HT</th><th>Délai d’effet</th></tr></thead>'+
+    '<tbody>'+lignes+'<tr class="tot"><td colspan="3">Total du programme (HT)</td><td class="n">'+fmtE(P.total)+'</td><td></td></tr></tbody></table>'+
+    '<p style="font-size:12px;color:var(--muted);margin-top:4px">Coûts unitaires de référence CEREMA / AMF / REX régionaux 2024 ; à affiner avec le maître d’œuvre.</p>'+
+
+    '<h2>4. Sites d’intervention — localisation précise</h2>'+
+    '<p>Les '+Math.min(20,P.N)+' sites du programme sont détaillés ci-dessous (sur '+P.N+' au total). Chaque site est nommé et identifié — ce sont des emplacements publics réels, pas des mailles anonymes. 🔥 = site déjà à 42 °C ou plus en pointe estivale (traité en urgence).</p>'+
+    '<table><thead><tr><th>Réf.</th><th>Site</th><th>Intervention</th><th>Espèces recommandées</th><th class="n">Coût HT</th><th class="n">Gain immédiat (1 an)</th><th class="n">Gain durable (20 ans)</th><th class="n">Efficacité<br>(°C/100k€)</th></tr></thead>'+
+    '<tbody>'+sitesHtml+'</tbody></table>'+
+    (P.N>20?'<p style="font-size:12px;color:var(--muted)">+ '+(P.N-20)+' sites supplémentaires disponibles en export complet.</p>':'')+
+
+    '<h2>5. Projection temporelle des bénéfices</h2>'+
+    '<p>Les bénéfices thermiques ne sont <b>pas immédiats à 100 %</b>, mais chaque site cumule plusieurs actions à vitesses différentes : désimperméabilisation, prairie et voiles d’ombrage agissent dès la première année ; les arbres de fort développement atteignent leur plein effet d’ombrage et d’évapotranspiration en <b>15 à 20 ans</b> (contre 25–30 ans pour de jeunes plants classiques).</p>'+
+    '<div class="dz-hbands">'+hbands+'</div>'+
+    '<div class="dz-alert">💡 <b>Lecture :</b> les valeurs ci-dessus représentent le gain thermique moyen sur les '+P.N+' sites sélectionnés, par rapport à leur état actuel.</div>'+
+
+    '<h2>6. Impact attendu à maturité</h2>'+
+    '<div class="dz-kpis">'+
+      '<div class="dz-kpi"><div class="n">−'+P.dT.toFixed(1)+' °C</div><div class="l">gain de température de surface (pleine maturité, 2046)</div></div>'+
+      '<div class="dz-kpi"><div class="n">'+fmtN(P.desimper)+' m²</div><div class="l">désimperméabilisés — effet dès 2027</div></div>'+
+      '<div class="dz-kpi"><div class="n">'+fmtN(P.n_arbres)+'</div><div class="l">arbres de fort développement plantés (maturité 2046)</div></div>'+
+      '<div class="dz-kpi"><div class="n">'+fmtN(P.eau)+' m³/an</div><div class="l">eaux pluviales infiltrées</div></div>'+
+      '<div class="dz-kpi"><div class="n">'+P.vegHa.toFixed(1)+' ha</div><div class="l">nouvelles surfaces végétalisées</div></div>'+
+      '<div class="dz-kpi"><div class="n">'+fmtN(P.co2)+' t/an</div><div class="l">CO₂ séquestré par les arbres à maturité</div></div>'+
+    '</div>'+
+
+    '<h2>7. Plan de financement</h2>'+
+    '<table><thead><tr><th>Financeur</th><th class="n">Taux</th><th class="n">Montant</th></tr></thead>'+
+    '<tbody>'+fin+'<tr class="tot"><td>Total</td><td class="n">100 %</td><td class="n">'+fmtE(P.total)+'</td></tr></tbody></table>'+
+    '<p style="font-size:12px;color:var(--muted);margin-top:4px">Plan de financement prévisionnel ; les montants DETR/DSIL et Région seront confirmés lors du dépôt.</p>'+
+
+    '<h2>8. Calendrier prévisionnel et jalons</h2>'+
+    '<table><tbody>'+
+      '<tr><td style="width:90px;white-space:nowrap"><b>2026</b><br><span style="font-size:11px;color:var(--muted)">Lancement</span></td><td>Études de maîtrise d’œuvre (6 mois) + appel d’offres travaux. Démarrage sur les sites tier 1 (cours d’école « Oasis », abords EHPAD). <b>Jalon</b> : '+ph1n+' sites lancés, gain escompté −'+dT_ph1+'°C dès 2027.</td></tr>'+
+      '<tr><td><b>2027</b><br><span style="font-size:11px;color:var(--muted)">Phase 2</span></td><td>Places, parkings et premiers alignements de voirie. <b>Jalon</b> : '+ph2n+' sites supplémentaires. Bilan intermédiaire NDVI / T° surface.</td></tr>'+
+      '<tr><td><b>2028</b><br><span style="font-size:11px;color:var(--muted)">Phase 3</span></td><td>Voiries secondaires et espaces verts. Bilan complet : NDVI, température, taux de survie des plantations. <b>Jalon final</b> : '+ph3n+' sites traités, gain mesuré −'+dT_ph3+'°C. Rapport de clôture.</td></tr>'+
+    '</tbody></table>'+
+
+    '<h2>9. Indicateurs de suivi et d’évaluation</h2>'+
+    '<table><thead><tr><th>Indicateur</th><th>Source</th><th>Fréquence</th><th>Valeur cible 2028</th></tr></thead>'+
+    '<tbody>'+
+      '<tr><td>Température de surface estivale (°C, sites traités)</td><td>Landsat 8-9 / ECOSTRESS</td><td>Annuel (juillet)</td><td>−'+h[0].dT.toFixed(1)+'°C vs. 2025</td></tr>'+
+      '<tr><td>Indice de végétation NDVI moyen</td><td>Sentinel-2 (10 m)</td><td>Annuel (juin–août)</td><td>+0,08 NDVI sur sites traités</td></tr>'+
+      '<tr><td>Taux de survie des plantations</td><td>Inspection terrain</td><td>Annuel</td><td>≥ 85 % à 3 ans</td></tr>'+
+      '<tr><td>Sites publics traités / programmés</td><td>SIG communal</td><td>Par phase</td><td>'+P.N+' / '+publicSites.length+' sites publics</td></tr>'+
+      '<tr><td>Satisfaction riverains (chaleur perçue)</td><td>Enquête municipale</td><td>Été 2027 et 2029</td><td>Amélioration > 20 %</td></tr>'+
+    '</tbody></table>'+
+
+    '<div class="dz-sign"><div>Le Maire de Yutz<br><br><br>__________________<br><span style="font-size:11px">Signature et cachet</span></div><div style="text-align:right">Fait à Yutz, le '+new Date().toLocaleDateString('fr-FR')+'<br><br>__________________</div></div>'+
+    '<div class="dz-note">Document généré automatiquement par la plateforme <b>Canopée</b> à partir du diagnostic thermique de la commune de Yutz et de l’inventaire de son foncier public ('+publicSites.length+' sites). Budget programme retenu : '+fmtE(P.total)+' HT (budget paramétrable de 200 k€ à 6 M€). Quantités, coûts et impacts à consolider avec les services techniques de la commune et un maître d’œuvre agréé. Espèces : règle de diversité 10-20-30 (max 10 % même espèce, 20 % même genre, 30 % même famille). Sources de données production : Sentinel-2, LiDAR HD IGN, Landsat/ECOSTRESS, cadastre.data.gouv.fr (nature juridique des parcelles), OpenStreetMap. Ce prototype utilise des données modélisées à des fins de démonstration.</div>';
+
+  document.body.classList.add('dossier-open');window.scrollTo(0,0);
+}
+function closeDossier(){document.body.classList.remove('dossier-open');window.scrollTo(0,0);}
+
+if(window.maplibregl){initMap();loadData();}else document.getElementById('map').innerHTML='<p style="padding:20px;color:#6b746d">Carte indisponible.</p>';
+''</script>
+</body>
+</html>
