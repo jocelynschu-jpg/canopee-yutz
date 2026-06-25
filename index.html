@@ -366,6 +366,28 @@ function osmToSiteType(tags){
   return null;
 }
 
+// Surface réelle d'un polygone OSM (formule de l'aire au lacet, projetée en mètres localement —
+// approximation suffisante à l'échelle d'une commune). Longueur réelle d'un tronçon de voirie.
+function polygonAreaM2(geom){
+  if(!geom||geom.length<3)return 0;
+  const lat0=geom[0].lat*Math.PI/180,mLat=111320,mLon=111320*Math.cos(lat0);
+  let a=0;
+  for(let i=0;i<geom.length;i++){
+    const p1=geom[i],p2=geom[(i+1)%geom.length];
+    a+=(p1.lon*mLon)*(p2.lat*mLat)-(p2.lon*mLon)*(p1.lat*mLat);
+  }
+  return Math.abs(a/2);
+}
+function lineLengthM(geom){
+  if(!geom||geom.length<2)return 0;
+  const lat0=geom[0].lat*Math.PI/180,mLat=111320,mLon=111320*Math.cos(lat0);
+  let len=0;
+  for(let i=0;i<geom.length-1;i++){
+    const dx=(geom[i+1].lon-geom[i].lon)*mLon,dy=(geom[i+1].lat-geom[i].lat)*mLat;
+    len+=Math.sqrt(dx*dx+dy*dy);
+  }
+  return len;
+}
 async function fetchPublicSites(){
   const bbox='49.34,6.16,49.38,6.23';
   const q=`[out:json][timeout:15];(
@@ -376,7 +398,7 @@ async function fetchPublicSites(){
     way["leisure"~"^(park|garden|playground|recreation_ground)$"](${bbox});
     node["leisure"~"^(park|playground)$"](${bbox});
     way["highway"~"^(primary|secondary|tertiary|residential|living_street|pedestrian)$"]["name"](${bbox});
-  );out center tags;`;
+  );out geom;`;
   try{
     const ctrl=new AbortController();
     const tid=setTimeout(()=>ctrl.abort(),12000);
@@ -384,7 +406,9 @@ async function fetchPublicSites(){
     clearTimeout(tid);
     const data=await res.json();
     const raw=data.elements.map(el=>{
-      const lon=el.lon??el.center?.lon, lat=el.lat??el.center?.lat;
+      const geom=el.geometry;
+      const lon=el.lon??el.center?.lon??(geom?geom.reduce((s,p)=>s+p.lon,0)/geom.length:null);
+      const lat=el.lat??el.center?.lat??(geom?geom.reduce((s,p)=>s+p.lat,0)/geom.length:null);
       if(!lon||!lat)return null;
       const t=el.tags||{};
       // Exclure le foncier explicitement privé (écoles/cliniques privées taguées operator:type=private) —
@@ -395,7 +419,20 @@ async function fetchPublicSites(){
       const siteType=osmToSiteType(t);
       if(!siteType)return null;
       const ST=SITE_TYPES[siteType];
-      return{siteType,name:t.name||ST.label,lon,lat,area_m2:ST.area_default};
+      // Surface réelle issue de la géométrie OSM quand disponible (un bâtiment/parking dessiné comme
+      // way) — sinon valeur par défaut du type. Sans ça, tous les sites d'un même type avaient
+      // exactement la même surface, donc le même coût, ce qui n'est objectivement pas réaliste.
+      let area_m2=ST.area_default,hasRealArea=false;
+      if(geom&&geom.length>=3){
+        if(siteType==='voirie'){
+          area_m2=Math.max(100,Math.round(lineLengthM(geom)*7));
+          hasRealArea=true;
+        }else{
+          const poly=polygonAreaM2(geom);
+          if(poly>20){area_m2=Math.round(poly);hasRealArea=true;}
+        }
+      }
+      return{siteType,name:t.name||ST.label,lon,lat,area_m2,hasRealArea};
     }).filter(Boolean);
     // Voirie : OSM scinde une même rue en dizaines de tronçons — on regroupe par nom
     // pour obtenir un site = une rue entière, pas un segment de 20 m.
@@ -413,7 +450,10 @@ async function fetchPublicSites(){
       area_m2:Math.min(v.area_m2,6000),
     }));
     // Autres types : un même établissement porte souvent plusieurs tags OSM proches
-    // (bâtiment + cour + entrée) — on dédoublonne par proximité.
+    // (ex. un nœud ET le bâtiment dessiné en polygone) — on dédoublonne par proximité,
+    // en gardant en priorité la version avec une vraie géométrie (surface réelle) plutôt
+    // que le premier point rencontré, sinon la surface réelle était systématiquement perdue.
+    others.sort((a,b)=>(b.hasRealArea?1:0)-(a.hasRealArea?1:0));
     const dedupOthers=[];
     for(const s of others){ if(!dedupOthers.some(x=>dist(s.lon,s.lat,x.lon,x.lat)*111320<80)) dedupOthers.push(s); }
     const combined=[...dedupOthers,...voirieSites];
@@ -612,6 +652,7 @@ function loadData(){
 }
 const SITE_SHORT={ecole:'École',ehpad:'EHPAD',place:'Place',parking:'Parking',equipement:'Équipement',voirie:'Voirie',espace_vert:'Espace vert'};
 let hiddenTypes=new Set();
+let expandedTiers=new Set();
 function renderSiteFilters(){
   const el=document.getElementById('siteFilters');
   if(!el)return;
@@ -792,13 +833,15 @@ function renderDashboard(){
 
   const tierRows=P.byTier.map(bt=>{
     const n=bt.sites.length,total=bt.all.length,active=n>0;
+    const expanded=expandedTiers.has(bt.tier);
+    const shown=expanded?bt.sites:bt.sites.slice(0,4);
     return '<div class="card" style="margin-bottom:8px;'+(active?'':'opacity:.5')+'">'+
       '<h3 style="display:flex;justify-content:space-between;align-items:center">'+
         '<span>'+TIER_LABEL[bt.tier]+'</span>'+
         '<span style="font-weight:600;color:var(--green-d);text-transform:none;letter-spacing:0;font-size:12.5px">'+n+' / '+total+'</span>'+
       '</h3>'+
-      (active?bt.sites.slice(0,4).map(siteRow).join('')
-        +(bt.sites.length>4?'<p class="hint" style="margin:4px 0 0">+ '+(bt.sites.length-4)+' autres sites de ce type</p>':'')
+      (active?shown.map(siteRow).join('')
+        +(bt.sites.length>4?'<p class="hint" style="margin:4px 0 0;cursor:pointer;color:var(--green-d);text-decoration:underline" data-toggle-tier="'+bt.tier+'">'+(expanded?'Réduire':'+ '+(bt.sites.length-4)+' autres sites de ce type — afficher tout')+'</p>':'')
         :'<p class="hint" style="margin:0">Budget insuffisant pour ce tier — augmentez le curseur pour l’activer.</p>')+
     '</div>';
   }).join('');
@@ -823,6 +866,11 @@ function renderDashboard(){
     '<button class="genbtn" id="genDossier">📄 Générer le dossier de subvention (Fonds Vert)</button>'+
     '<p class="hint" style="margin-top:8px">Le dossier détaille chaque site retenu : travaux précis, espèces, coût et délai d’effet.</p>';
   const gd=document.getElementById('genDossier');if(gd)gd.addEventListener('click',openDossier);
+  panel.querySelectorAll('[data-toggle-tier]').forEach(el=>el.addEventListener('click',()=>{
+    const t=+el.dataset.toggleTier;
+    if(expandedTiers.has(t))expandedTiers.delete(t);else expandedTiers.add(t);
+    renderDashboard();
+  }));
 }
 
 /* ====== Panneau : détail d'une maille (fond thermique, informatif) ====== */
