@@ -188,7 +188,7 @@ const T={
     coverageNote:(n,totalCost)=>'Le plafond du curseur (6 M€) vise une demande de subvention réaliste pour <b>un</b> dossier, pas 100 % du territoire : traiter l’intégralité des '+n+' sites coûterait '+totalCost+' — à phaser sur plusieurs dossiers/années, pas en un seul Fonds Vert.',
     urgentBanner:(total,n)=>'🔥 <b>'+total+' sites déjà à 42 °C ou plus</b> en pointe estivale ('+n+' traités dans ce programme). Ces sites reçoivent un bonus d’urgence dans le tri — agir vite y prime sur le gain théorique maximal.',
     gainTitle:'Gain thermique projeté dans le temps',
-    gainNote:'<b>2027</b> : désimperméabilisation, prairies et voiles d’ombrage agissent dès l’installation — effet <b>immédiat</b>. Arbres de fort développement en plein effet dès <b>2046</b> — effet <b>durable</b> (15–20 ans, pas 30). Le programme combine systématiquement les deux.',
+    gainNote:'<b>2027</b> : désimperméabilisation, prairies et voiles d’ombrage agissent dès l’installation — effet <b>immédiat</b>. Arbres de fort développement en plein effet dès <b>2046</b> — effet <b>durable</b> (15–20 ans, pas 30). Le programme combine systématiquement les deux. Ces valeurs sont des <b>températures de surface</b> (mesure satellite/thermique) ; le ressenti perçu par les usagers est généralement plus modéré.',
     entonnoirTitle:'Entonnoir budgétaire — ordre de priorité',
     entonnoirNote:'Tri par maille : potentiel thermique × vulnérabilité sociale × urgence (température déjà atteinte). <span style="color:var(--muted)">+X °C/100k€</span> = gain à maturité par 100 000 € investis, pour comparer l’efficacité des sites entre eux.',
     tierInactive:'Budget insuffisant pour ce tier — augmentez le curseur pour l’activer.',
@@ -234,7 +234,7 @@ const T={
     coverageNote:(n,totalCost)=>'The slider cap (€6M) targets a realistic single grant application, not 100% of the territory: treating all '+n+' sites would cost '+totalCost+' — to be phased over several applications/years, not a single Fonds Vert grant.',
     urgentBanner:(total,n)=>'🔥 <b>'+total+' sites already at 42 °C or more</b> at summer peak ('+n+' addressed in this program). These sites receive an urgency bonus in the ranking — acting fast takes priority over the theoretical maximum gain.',
     gainTitle:'Projected thermal gain over time',
-    gainNote:'<b>2027</b>: de-sealing, meadows and shade sails act as soon as installed — <b>immediate</b> effect. Large-growth trees reach full effect by <b>2046</b> — <b>lasting</b> effect (15-20 years, not 30). The program systematically combines both.',
+    gainNote:'<b>2027</b>: de-sealing, meadows and shade sails act as soon as installed — <b>immediate</b> effect. Large-growth trees reach full effect by <b>2046</b> — <b>lasting</b> effect (15-20 years, not 30). The program systematically combines both. These values are <b>surface temperatures</b> (satellite/thermal measurement); the temperature actually felt by users is generally more moderate.',
     entonnoirTitle:'Budget funnel — priority order',
     entonnoirNote:'Ranked per site: thermal potential × social vulnerability × urgency (temperature already reached). <span style="color:var(--muted)">+X °C/100k€</span> = gain at maturity per €100,000 invested, to compare site efficiency.',
     tierInactive:'Insufficient budget for this tier — raise the slider to activate it.',
@@ -277,27 +277,27 @@ const POI_LABEL={school:'École / crèche',ehpad:'EHPAD / maison de retraite',ma
    et retient automatiquement la meilleure — au lieu d’appliquer un matériau fixe par défaut. */
 const MATERIALS={
   desimper:[
-    {id:'stabilise',label:'Stabilisé / sable-résine',label_en:'Stabilized gravel / resin-bound',cost_m2:45,dT:[1.5,2.2],carrossable:false,
+    {id:'stabilise',label:'Stabilisé / sable-résine',label_en:'Stabilized gravel / resin-bound',cost_m2:45,dT:[3,5],carrossable:false,
       note:'Le plus économique en zone piétonne ; entretien faible.',
       note_en:'The most economical option for pedestrian areas; low maintenance.'},
-    {id:'paves_drainants',label:'Pavés / dalles à joints drainants',label_en:'Permeable pavers / slabs',cost_m2:75,dT:[1.8,2.6],carrossable:true,
+    {id:'paves_drainants',label:'Pavés / dalles à joints drainants',label_en:'Permeable pavers / slabs',cost_m2:75,dT:[3.5,5.5],carrossable:true,
       note:'Durable, accessible PMR.',
       note_en:'Durable, wheelchair-accessible.'},
-    {id:'beton_drainant',label:'Béton / enrobé drainant carrossable',label_en:'Permeable concrete (trafficable)',cost_m2:55,dT:[1.8,2.6],carrossable:true,
+    {id:'beton_drainant',label:'Béton / enrobé drainant carrossable',label_en:'Permeable concrete (trafficable)',cost_m2:55,dT:[3.5,5.5],carrossable:true,
       note:'Supporte le trafic ; demande un entretien (aspiration) pour éviter le colmatage.',
       note_en:'Supports vehicle traffic; needs maintenance (vacuuming) to avoid clogging.'},
-    {id:'enrobe_clair',label:'Enrobé clair à albédo élevé (type ÉcOasis®)',label_en:'Light high-albedo asphalt (ÉcOasis®-type)',cost_m2:75,dT:[2.2,3.2],carrossable:true,
+    {id:'enrobe_clair',label:'Enrobé clair à albédo élevé (type ÉcOasis®)',label_en:'Light high-albedo asphalt (ÉcOasis®-type)',cost_m2:75,dT:[5,8],carrossable:true,
       note:'Cumule désimperméabilisation et réflexion solaire ; plus salissant qu’un enrobé noir.',
       note_en:'Combines de-sealing with solar reflectivity; gets dirtier-looking than black asphalt.'},
-    {id:'pleine_terre',label:'Retrait total + pleine terre végétalisée',label_en:'Full removal + planted bare soil',cost_m2:110,dT:[2.8,4.0],carrossable:false,risque:true,
+    {id:'pleine_terre',label:'Retrait total + pleine terre végétalisée',label_en:'Full removal + planted bare soil',cost_m2:110,dT:[6,9],carrossable:false,risque:true,
       note:'Le plus frais, mais gestion des déblais et diagnostic amiante/HAP obligatoire avant travaux — non retenu par défaut.',
       note_en:'The coolest option, but requires spoil management and a mandatory asbestos/PAH survey beforehand — not selected by default.'},
   ],
   toiture:[
-    {id:'cool_roof',label:'Cool roof (peinture réfléchissante blanche)',label_en:'Cool roof (white reflective coating)',cost_m2:30,dT:[1.0,1.6],
+    {id:'cool_roof',label:'Cool roof (peinture réfléchissante blanche)',label_en:'Cool roof (white reflective coating)',cost_m2:30,dT:[5,8],
       note:'~3× moins cher que le végétal pour un effet de surface comparable (35–45 °C vs 75–85 °C), mais aucune rétention d’eau ni biodiversité.',
       note_en:'~3x cheaper than a green roof for a comparable surface effect (35-45°C vs 75-85°C), but no stormwater retention or biodiversity benefit.'},
-    {id:'veg_extensive',label:'Toiture végétale extensive',label_en:'Extensive green roof',cost_m2:95,dT:[1.0,1.8],
+    {id:'veg_extensive',label:'Toiture végétale extensive',label_en:'Extensive green roof',cost_m2:95,dT:[4.5,7],
       note:'Rétention des eaux pluviales + biodiversité — valorisé par l’axe « renaturation » du Fonds Vert.',
       note_en:'Stormwater retention + biodiversity — valued under the Fonds Vert “renaturation” track.'},
   ],
@@ -448,9 +448,9 @@ const SITE_TYPES={
    de ne créditer que l’action dominante. Sujets « fort développement » → canopée utile en
    ~20 ans (au lieu de 25–30 ans pour de jeunes plants), ce qui accélère aussi l’effet à moyen terme. */
 const DT_COMPONENT={
-  arbre:   {range:[3,5],   matur:t=>Math.min(1,t/20)},
-  prairie: {range:[0.8,1.6],matur:t=>Math.min(1,t>=2?1:t*0.5)},
-  ombriere:{range:[1.0,1.8],matur:()=>1},
+  arbre:   {range:[5,8],   matur:t=>Math.min(1,t/20)},
+  prairie: {range:[2,3.5],matur:t=>Math.min(1,t>=2?1:t*0.5)},
+  ombriere:{range:[2,3.5],matur:()=>1},
 };
 const MAT_MATUR={
   desimper:t=>Math.min(1,t>=1?1:t*0.85),
@@ -1226,6 +1226,7 @@ function openDossier(){
     '<h3 style="margin-top:18px;font-size:14px">Veille technologique et choix des matériaux</h3>'+
     '<p>Pour la désimperméabilisation, '+MATERIALS.desimper.length+' matériaux sont comparés site par site (stabilisé, pavés/dalles drainants, béton drainant carrossable, enrobé clair à albédo élevé type ÉcOasis®, retrait total en pleine terre) selon leur <b>ratio gain thermique / coût</b>, en tenant compte de la contrainte carrossable ou non. Pour les toitures, cool roof (peinture réfléchissante) et toiture végétale extensive sont comparés : la seconde est retenue par défaut car valorisée par l’axe « renaturation » du Fonds Vert (rétention d’eau, biodiversité), la première étant ~3 fois moins chère pour un effet de surface proche si seul le critère thermique prime. Les arbres sont plantés en fosse à fort volume de terre-pierre (type « fosse de Stockholm ») : ce dispositif a permis de doubler la vitesse de croissance des arbres urbains dans les retours d’expérience suédois.</p>'+
     '<p style="font-size:12px;color:var(--muted)">Sources : CEREMA, Adaptaville/Plante &amp; Cité, Eiffage (ÉcOasis®/Bioklair®), Lawrence Berkeley National Laboratory Heat Island Group, Hélios Cool Roof, Espace Ombrage, Urbasense. Catalogue figé à la date d’édition du dossier — une veille périodique (et, en production, une base matériaux connectée type CSTB/ADEME) permettrait de l’actualiser.</p>'+
+    '<p>Les gains thermiques par matériau (3 à 9 °C selon le revêtement, 5 à 8 °C pour les toitures) sont calés sur ces mêmes sources : un enrobé clair à albédo élevé peut réduire la température de surface d’environ 15 °C par rapport à un enrobé noir, et les revêtements perméables courants d’environ 6 °C en journée (CEREMA, Plus Fraîche Ma Ville). <b>Ce sont des températures de surface</b> sur l’emprise traitée, pondérées par la part réelle de chaque site concernée par l’action — pas la température ressentie par les usagers, structurellement plus modérée (de l’ordre de 3 à 6 °C sur les retours d’expérience « cours Oasis » publiés) car elle intègre le brassage de l’air et l’ombrage partiel. Les deux indicateurs sont cohérents entre eux mais ne se lisent pas de la même façon dans un dossier technique.</p>'+
     '<div class="dz-alert">⚠️ <b>Points de vigilance avant travaux :</b> un <b>diagnostic amiante/HAP</b> est obligatoire avant toute découpe d’enrobé ancien (les liants d’avant les années 2000 contiennent fréquemment du goudron de houille) — en cas de pollution, l’évacuation des déblais est reclassée en déchet dangereux et le coût augmente significativement. Un <b>repérage des réseaux enterrés</b> (DT-DICT) est requis avant tout terrassement. Ces postes ne sont pas budgétés dans les coûts indicatifs ci-dessous et doivent être chiffrés site par site avec le maître d’œuvre.</div>'+
     '<div class="dz-alert">⚠️ <b>Note de transparence :</b> dans ce prototype, l’occupation du sol, les températures et l’inventaire du foncier public sont <i>modélisés</i> ou issus d’OpenStreetMap (Overpass API) à titre de démonstration. En production, le foncier public est vérifié sur le <b>cadastre</b> (nature juridique des parcelles) et les données IGN/Landsat réelles.</div>'+
 
